@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0E1A">
+<title>Software Engineer LIFE — cámara encendida</title>
+<meta name="description" content="Eres la webcam de un dev en Lima, 2019 → 2026. Elige A o B y descubre qué final te sale. Un juego para celular de 4 minutos. #HackTheAndes">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Software Engineer LIFE — cámara encendida">
+<meta property="og:description" content="Eres la webcam de un dev en Lima, 2019 → 2026. Pandemia, horas extra, recortes, ascenso sin aumento… ¿Qué final te sale? #HackTheAndes">
+<meta property="og:image" content="og.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="css/game.css?v=3">
+</head>
+<body>
+<div class="rotate" aria-hidden="true">Gira tu teléfono ↻<br>(este juego es vertical)</div>
+
+<div class="page">
+
+  <aside class="info" id="info" aria-label="Información">
+    <div class="eyebrow">#HackTheAndes · Vibecodea un juego</div>
+    <h1>Software Engineer LIFE<em>cámara encendida</em></h1>
+    <p>Un juego pensado para el celular: 4 minutos, una vida de dev en Lima (2019 → 2026) y dos opciones por escena. Escanea el código o abre este enlace en tu teléfono.</p>
+    <div class="qr" id="qr" aria-label="Código QR"></div>
+    <div class="url" id="urlText"></div>
+    <ul>
+      <li><kbd>A</kbd> <kbd>←</kbd> primera opción</li>
+      <li><kbd>B</kbd> <kbd>→</kbd> segunda opción</li>
+      <li><kbd>Espacio</kbd> continuar</li>
+    </ul>
+  </aside>
+
+  <div class="deviceWrap" id="wrap">
+    <div class="device" id="device">
+      <div class="island" id="island"></div>
+      <div class="statusbar" aria-hidden="true"><span>9:41</span><span>●●● ▮</span></div>
+
+      <main class="screen" id="screen">
+
+        <!-- TITLE -->
+        <section class="scr on" id="s-title" aria-label="Inicio">
+          <div class="bg" id="titleBg" aria-hidden="true"></div><div class="shade"></div>
+          <button class="snd" data-sound aria-label="Sonido" aria-pressed="false">
+            <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6M21 9l-5 6"/></svg>
+            <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+          </button>
+          <div class="tag"><i class="dot"></i>Cámara lista · 720p</div>
+          <h1><span>Software</span><span>Engineer</span><span class="l">LIFE</span></h1>
+          <div class="sub">Cámara encendida.</div>
+          <div class="sub2">Tú eres la webcam. Ves una vida de dev en Lima, 2019 → 2026, y decides por ella. ~4 min.</div>
+          <div class="challenge" id="challenge"></div>
+          <div class="titlebtns">
+            <button class="cta" id="btnStart"><i class="dot"></i>Encender cámara</button>
+            <button class="cta link" id="btnFinales" hidden>Mis finales</button>
+          </div>
+          <div class="foot">#HackTheAndes · hecho en Lima con IA</div>
+        </section>
+
+        <!-- PICK -->
+        <section class="scr" id="s-pick" aria-label="Elegir persona">
+          <h2>¿A quién vas a ver?</h2>
+          <p class="s">Octubre 2019 · Lima. Egresado/a de Ingeniería de Software (5 años de carrera), 3 meses de prueba sin sueldo… y hoy firma contrato.</p>
+          <div class="tiles" id="tiles"></div>
+          <div class="namebox"><label for="name">Su nombre</label><input id="name" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Camila"></div>
+          <button class="cta" id="btnGo"><i class="dot"></i>Continuar</button>
+        </section>
+
+        <!-- PLAY -->
+        <section class="scr" id="s-play" aria-label="Juego">
+          <div class="cam" id="cam">
+            <div class="feed" id="feed"></div>
+            <div class="vig"></div><div class="grain"></div><div class="flash" id="flash"></div>
+            <div class="camoff" id="camoff"><i class="dot"></i><b>Cámara apagada</b><span>No ves nada.<br>Pero la webcam escucha.</span></div>
+            <div class="chrome">
+              <div class="row">
+                <div class="l"><i class="dot" id="led"></i>Cámara encendida</div>
+                <div class="r"><i class="dot rec"></i><span id="rec">REC 00:00</span>
+                  <button class="snd" data-sound aria-label="Sonido" aria-pressed="false">
+                    <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6M21 9l-5 6"/></svg>
+                    <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="hud" id="hud"></div>
+              <div class="tl"><span class="chip" id="yr">OCT 2019</span><div class="rail"><b id="railb"></b><i id="raili"></i></div><small>2026</small></div>
+            </div>
+            <div class="ticker" id="ticker" hidden><span id="tickerTx"></span></div>
+            <div class="amb" id="amb" hidden></div>
+          </div>
+          <div class="panel">
+            <div class="notif" id="notif" aria-live="polite"></div>
+            <div class="opts" id="opts"></div>
+            <div class="meta" id="meta"></div>
+          </div>
+        </section>
+
+        <!-- END -->
+        <section class="scr" id="s-end" aria-label="Tu final">
+          <div class="kick"><span>Tu final</span><span>Finales <b id="coll">1/15</b></span></div>
+          <h2 id="eTitle"></h2>
+          <p class="roast" id="eRoast"></p>
+          <p class="epi" id="eEpi"></p>
+          <div class="story" id="eStory"></div>
+          <div class="booth" id="booth"></div>
+          <div class="recap"><h3>Lo que la webcam recuerda</h3><ul id="recap"></ul></div>
+          <div class="fm" id="fm"></div>
+          <p class="care" id="eCare"></p>
+          <div class="endbtns">
+            <button class="cta" id="btnShare"><i class="dot" style="background:#0B0E1A;box-shadow:none"></i>Compartir mi final</button>
+            <button class="cta sec" id="btnChallenge">Retar a un amigo (mismo mundo)</button>
+            <button class="cta sec" id="btnAgain">Jugar otra vez</button>
+            <button class="cta link" id="btnFinales2">Ver mis finales</button>
+          </div>
+          <div class="seed" id="seedTxt"></div>
+        </section>
+
+        <!-- overlays -->
+        <div class="ycard" id="ycard" aria-live="polite"></div>
+        <div class="sheet" id="sheet" role="dialog" aria-label="Mis finales"><header><h2>Mis finales <span id="sheetCount"></span></h2><button class="x" id="sheetX" aria-label="Cerrar">✕</button></header><div id="sheetList"></div></div>
+        <div class="toast" id="toast" role="status"></div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<noscript><p style="position:fixed;inset:0;background:#0B0E1A;color:#fff;display:grid;place-items:center;padding:30px;text-align:center;font:600 18px system-ui">Este juego necesita JavaScript. Actívalo y vuelve a intentar.</p></noscript>
+
+<script src="js/data.js?v=3"></script>
+<script src="js/engine.js?v=3"></script>
+<script src="js/render.js?v=3"></script>
+<script src="js/audio.js?v=3"></script>
+<script src="js/app.js?v=3"></script>
+</body>
+</html>

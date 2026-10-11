@@ -1,0 +1,17 @@
+{
+  "name": "Software Engineer LIFE — cámara encendida",
+  "short_name": "SE LIFE",
+  "description": "Eres la webcam de un dev en Lima, 2019 → 2026. Elige A o B.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B0E1A",
+  "theme_color": "#0B0E1A",
+  "lang": "es",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
