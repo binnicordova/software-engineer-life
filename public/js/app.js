@@ -203,6 +203,7 @@ function finish() {
   $('#eCare').textContent = r.care;
   $('#booth').innerHTML = `<div class="grid">${r.frames.map((f, i) => `<figure><div class="ph">${R.frameSvg(f, gender, 'b' + i)}</div><figcaption>${esc(f.label)}</figcaption></figure>`).join('')}</div><div class="bt"><span>SOFTWARE ENGINEER LIFE</span><span>#HACKTHEANDES</span></div>`;
   $('#recap').innerHTML = r.recap.map(x => `<li><span>${x.icon}</span><span>${x.text}</span></li>`).join('');
+  $('#eThink').innerHTML = r.think ? `<b>Para pensar</b>${r.think}<small>Es una simulación, no un consejo profesional.</small>` : '';
   $('#fm').innerHTML = KEYS.map(k => `<div class="mtr" data-k="${k}" style="--k:${COL[k]}">${ICON[k]}<div class="bar"><b></b></div></div>`).join('');
   $('#seedTxt').textContent = 'Semilla del reto: ' + seed.toString(36).toUpperCase();
   show('end'); $('#s-end').scrollTop = 0;

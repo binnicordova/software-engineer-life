@@ -66,7 +66,7 @@ for (const c of D.CARDS) {
     ['A', 'B'].forEach(k => { if (v.over[k]) { textOk(v.over[k].t, `${w}.v${i}.${k}.t`, 52); v.over[k].roll ? (outOk(v.over[k].win, `${w}.v${i}.${k}.win`), outOk(v.over[k].lose, `${w}.v${i}.${k}.lose`)) : outOk(v.over[k], `${w}.v${i}.${k}`); } });
   });
 }
-D.ENDINGS.forEach(e => { (e.needs || []).forEach(n => condOk(n, `ending ${e.id}`)); textOk(e.title, `ending ${e.id}.title`, 40); textOk(e.roast, `ending ${e.id}.roast`, 90); textOk(e.story, `ending ${e.id}.story`, 170); });
+D.ENDINGS.forEach(e => { if (!e.think) err(`ending ${e.id}: missing think (Para pensar prompt)`); textOk(e.think, `ending ${e.id}.think`, 130); (e.needs || []).forEach(n => condOk(n, `ending ${e.id}`)); textOk(e.title, `ending ${e.id}.title`, 40); textOk(e.roast, `ending ${e.id}.roast`, 90); textOk(e.story, `ending ${e.id}.story`, 170); });
 D.ACTS.forEach((a, i) => { textOk(a.line, `act ${i}.line`, 120); if (a.pool > D.CARDS.filter(c => c.kind === 'pool' && c.acts.includes(i)).length) warn(`act ${i}: pool larger than candidates`); });
 D.RECAP.forEach(r => { (r.needs || []).forEach(n => condOk(n, `recap ${r.id}`)); });
 

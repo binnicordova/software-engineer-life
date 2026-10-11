@@ -104,6 +104,32 @@ Al terminar, el juego revela una **tira Photo Booth** con cuatro cuadros de *tu*
 
 ---
 
+## 🎓 Para juniors y estudiantes: una posible realidad antes de vivirla
+
+Cuando estudias (o recién empiezas), es fácil imaginar la carrera como una línea recta: título → buen trabajo → ascenso → mejor sueldo. El juego muestra, en 4 minutos y con humor, **cómo esa línea se tuerce según tus decisiones**, y te deja con preguntas en vez de respuestas:
+
+| Decisión | Lo que te hace pensar |
+|---|---|
+| 🤝 **Firmar o negociar** | Un “periodo de prueba” sin sueldo, un primer contrato, pedir más: ¿cuándo se negocia y cuándo se acepta? |
+| 🎲 **Tomar riesgos con cabeza** | Condicionar un ascenso, pedir un aumento, aceptar acciones en vez de sueldo: cada riesgo tiene probabilidad y un costo si sale mal. |
+| 🧭 **Estrategia a largo plazo** | Decir “sí” a todo, aprender de otros, cambiar de trabajo o quedarte: pequeñas decisiones que se acumulan durante años. |
+| 🫀 **Cuidar tu salud** | El estrés se acumula en silencio y el cuerpo avisa. ¿Qué pasa si lo ignoras? |
+| 👥 **Tu red y tus mentores** | Quien te enseñó un día puede ser quien te recomiende cuando el mercado cambia. |
+| 🤖 **Adaptarte a la IA** | Aprender a dirigirla o resistirte: ¿qué ganas y qué pierdes con cada camino? |
+
+Cada final termina con una tarjeta **“Para pensar”** (por ejemplo: *¿Estar siempre disponible es compromiso o miedo?*).
+
+**Úsalo en clase, en un meetup o con tu comunidad (20 minutos):**
+
+1. Cada persona juega una partida (4 min) desde su celular.
+2. Comparen finales y medidores: ¿quién llegó a 2026? ¿quién se quedó sin Energía, Plata, Carrera o Vida?
+3. Elijan una decisión y debátanla: *¿qué harías distinto en la vida real, y por qué?*
+4. **Reten al grupo:** con *Retar a un amigo*, todos juegan **el mismo mundo** (mismos eventos y mismos dados) y comparan cómo cada decisión cambia el resultado.
+
+> ℹ️ Es una **simulación simplificada**, con humor y datos ficticios (S/, escenas inspiradas en situaciones comunes de la industria). No describe a todas las empresas ni países, ni reemplaza consejo profesional o psicológico.
+
+---
+
 ## 🛠️ Para devs
 
 - **Stack:** HTML + CSS + JavaScript puro. **Sin dependencias ni build.** Todo el arte es SVG generado por código (cero imágenes del juego). ~48 KB comprimido.

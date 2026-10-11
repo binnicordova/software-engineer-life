@@ -249,7 +249,7 @@ function createGame(opts) {
     if (S.over) end = E.find(e => e.over === S.over);
     else end = E.find(e => !e.over && !e.special && !e.default && ok(e.needs)) || E.find(e => e.special && ok(e.needs)) || E.find(e => e.default);
     return {
-      id: end.id, title: tpl(end.title), roast: tpl(end.roast), story: tpl(end.story),
+      id: end.id, title: tpl(end.title), roast: tpl(end.roast), story: tpl(end.story), think: tpl(end.think || ''),
       care: end.care || D.CARES[E.indexOf(end) % D.CARES.length],
       over: S.over, kind: S.over ? 'over' : (end.special ? 'special' : end.default ? 'default' : 'state'),
       epilogue: S.flags.vibe ? 'vibe' : S.flags.walk ? 'walk' : null,
