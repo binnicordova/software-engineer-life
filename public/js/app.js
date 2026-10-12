@@ -118,7 +118,9 @@ async function showAct(n) {
     const S = G.state;
     chips.push(`<span style="color:${COL.p}">Costo de vida · Plata −${n.tick.cost}</span>`, `<span style="color:${COL.e}">Descanso · Energía +${n.tick.regen}</span>`);
     if (n.tick.absence) chips.push(`<span style="color:${COL.v}">Ausencias · Vida −${n.tick.absence}</span>`);
-    delta('p', -n.tick.cost); delta('e', n.tick.regen); delta('v', -n.tick.absence); paintHud($('#hud'), { e: S.e, p: S.p, c: S.c, v: S.v });
+    const hh = n.tick.health || { e: 0, p: 0 };
+    if (hh.e || hh.p) chips.push(`<span style="color:${COL.e}">Tu cuerpo cobra · ${[hh.e && `Energía −${hh.e}`, hh.p && `Plata −${hh.p}`].filter(Boolean).join(' · ')}</span>`);
+    delta('p', -(n.tick.cost + hh.p)); delta('e', n.tick.regen - hh.e); delta('v', -n.tick.absence); paintHud($('#hud'), { e: S.e, p: S.p, c: S.c, v: S.v });
   }
   const yc = $('#ycard');
   yc.innerHTML = `<div class="y">${n.year}</div><div class="t">${esc(n.title)}</div><div class="l">${n.line}</div><div class="chips">${chips.join('')}</div><small>toca para continuar</small>`;

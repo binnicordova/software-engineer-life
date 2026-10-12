@@ -21,7 +21,7 @@ No build step, no dependencies. (Opening `public/index.html` straight from disk 
 public/
   index.html            shell: title · pick · play · end · overlays
   css/game.css          styles (phone-first; desktop = phone frame)
-  js/data.js            ALL content: acts, cast, 49 scenes, 15 endings, recap, tuning knobs
+  js/data.js            ALL content: acts, cast, 78 scenes, 19 endings, risk groups, recap, tuning knobs
   js/engine.js          DOM-free game logic (seeded RNG, scheduling, conditions, endings)
   js/render.js          SVG webcam rooms + engineer + Photo Booth share card (canvas)
   js/audio.js           synthesized SFX (no audio files)
@@ -48,7 +48,11 @@ SITE_URL=https://your-game.pages.dev node tools/build-ending-pages.mjs   # absol
 
 - **Text tokens:** `{n}` name · `{o}` o/a · `{#ot}` counter · `{?flag|si|no}` inline condition (`ot>=3`, `!laid_off`, `c>=60`…).
 - **Outcome keys:** `fx{e,p,c,v}` · `st` (hidden stress) · `set[]`/`unset[]` flags · `count{ot,bound,…}` · `raise` · `res` · `expr` · `addProps`.
-- **Scene kinds:** `anchor` (fixed per act; `first`/`last`/`fix`) · `pool` (random, by `acts`) · `trigger` (hidden-state driven) · `fate` (one button, rolled).
+- **Scene kinds:** `anchor` (fixed per act; `first`/`last`/`fix`) · `pool` (random, by `acts`) · `trigger` (hidden-state driven; `chain: true` = follow-up of an earlier event, not counted against `D.TRIG_CAP`) · `fate` (one button, rolled) · `risk` (belongs to a `group` in `D.RISK`; see below).
+- **Risk groups (`D.RISK`):** at the start of each year the engine rolls, per group (`health`, `family`, `work`, `money`), `base + perAct·(act−from) + Σ mods that hold now` (seeded; capped by `D.RISK_CAP`) and injects one eligible `risk` card of that group (same `needs`/`acts` filters). That is how a stressed or overworked player meets *espalda*, *pelea*, *evaluación baja*… more often than a balanced one.
+- **Chronic conditions (`D.CONDITIONS`):** `{ id, care }` flag pairs. A diagnosed condition drains `R.chronic.e` Energía and `R.chronic.p` Plata **every year**; if the `care` flag is set it only costs `R.chronic.care` Plata (treatment).
+- **Family strain:** hidden counter `strain` — rises with stress ≥ `strainStress`, Vida < `strainLife`, and overtime, and falls with a healthy home life or therapy. `separacion` (`strain>=6`) → `divorcio` chain.
+- **Commitment flags** (add a yearly cost via `R.cost`): `rent`, `rent_alone`, `mortgage`, `car_loan`, `debt`, `divorced`, `jobless`.
 - **Variants:** `variants:[{ needs:[…], over:{ …fields } }]` swap text/options by flags — this is how callbacks work (mentor → referral, baby → crib, etc.).
 - **Tuning knobs:** `D.RULES` (start values, yearly costs, gain scale, stress coupling, absence). Change → `node tools/sim.mjs`.
 

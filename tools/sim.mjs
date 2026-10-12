@@ -66,6 +66,10 @@ for (const name of Object.keys(policies)) {
   const dist = {}; res.forEach(r => { dist[r.fin.id] = (dist[r.fin.id] || 0) + 1; reached.add(r.fin.id); });
   const avg = f => (res.reduce((a, r) => a + f(r), 0) / res.length).toFixed(1);
   console.log(`\n== ${name.padEnd(10)} survive ${pct(alive.length, RUNS)} | cards ${avg(r => r.s.played)} | final e/p/c/v ${K.map(k => avg(r => r.s[k])).join('/')} | stress ${avg(r => r.s.stress)}`);
+  const has = f => pct(res.filter(r => r.s.flags[f]).length, RUNS).trim();
+  const anyDx = pct(res.filter(r => (r.s.cnt.dx || 0) > 0).length, RUNS).trim();
+  console.log(`   family · partner ${has('partner')} baby ${has('baby')} avg strain ${avg(r => r.s.cnt.strain || 0)} max>=4 ${pct(res.filter(r => (r.s.cnt.strain||0) >= 4).length, RUNS).trim()} missed ${avg(r => r.s.cnt.missed || 0)}`);
+  console.log(`   threads · dx ${anyDx} (avg ${avg(r => r.s.cnt.dx || 0)}) gallbladder ${has('gallbladder')} | separated ${has('separated')} divorced ${has('divorced')} therapy ${has('therapy')} | pip ${has('pip')} conflict ${has('conflict')} jobless_ever ${has('jobless_ever')} | mortgage ${has('mortgage')} car ${has('car_loan')} rent_alone ${has('rent_alone')} debt ${has('debt')}`);
   if (!QUIET) Object.entries(dist).sort((a, b) => b[1] - a[1]).forEach(([id, n]) => console.log('   ' + id.padEnd(16), pct(n, RUNS)));
   else console.log('   ' + Object.entries(dist).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, n]) => id + ' ' + pct(n, RUNS).trim()).join(' · '));
 }

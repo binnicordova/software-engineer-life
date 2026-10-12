@@ -11,7 +11,7 @@ const COND = /^(!)?([a-z_0-9]+)(?:(>=|<=|==|>|<)(-?\d+))?$/;
 const STATS = new Set(['e', 'p', 'c', 'v']);
 const EXPR = new Set(['neutral', 'happy', 'tired', 'stressed', 'shock', 'sick', 'relief']);
 const AMB = new Set(['mom', 'lag', 'camotero', 'drill', 'baby', 'kid', 'apagon']);
-const COUNTERS = new Set(['ot', 'yes', 'extra', 'body', 'learn', 'cam', 'bound', 'raises']);
+const COUNTERS = new Set(['ot', 'yes', 'extra', 'body', 'learn', 'cam', 'bound', 'raises', 'strain', 'dx', 'loans', 'missed', 'unemp', 'care']);
 
 // flags that are ever set, to catch conditions on flags nobody sets
 const setFlags = new Set();
@@ -42,13 +42,21 @@ const outOk = (o, where) => {
   if (!o.res) err(`${where}: missing res`);
 };
 
+// risk groups + chronic conditions (config blocks in data.js)
+const RISK = D.RISK || {};
+Object.entries(RISK).forEach(([g, cfg]) => { (cfg.mods || []).forEach(([cn]) => condOk(cn, `risk ${g}.mods`)); if (!D.CARDS.some(c => c.kind === 'risk' && c.group === g)) warn(`risk group ${g}: no cards`); });
+(D.CONDITIONS || []).forEach(cd => { [cd.id, cd.care].forEach(f => { if (!setFlags.has(f)) err(`condition ${cd.id}: flag "${f}" is never set`); }); });
+const unsetOk = (o, where) => { if (!o) return; (o.unset || []).forEach(f => { if (!setFlags.has(f)) warn(`${where}: unset "${f}" that nothing sets`); }); };
+
 const ids = new Set();
 for (const c of D.CARDS) {
   const w = `card ${c.id}`;
   if (ids.has(c.id)) err(`${w}: duplicate id`); ids.add(c.id);
   if (!D.NPC[c.from]) err(`${w}: unknown npc ${c.from}`);
-  if (!['anchor', 'pool', 'trigger', 'fate'].includes(c.kind)) err(`${w}: bad kind`);
-  if (c.kind === 'pool' ? !c.acts : (c.kind !== 'trigger' && c.act == null)) err(`${w}: missing act(s)`);
+  if (!['anchor', 'pool', 'trigger', 'fate', 'risk'].includes(c.kind)) err(`${w}: bad kind`);
+  if ((c.kind === 'pool' || c.kind === 'risk') ? !c.acts : (c.kind !== 'trigger' && c.act == null)) err(`${w}: missing act(s)`);
+  if (c.kind === 'risk' && !RISK[c.group]) err(`${w}: risk card needs a group in D.RISK (got ${c.group})`);
+  if (c.chain && c.kind !== 'trigger') err(`${w}: chain only applies to triggers`);
   if (c.ambient && !AMB.has(c.ambient)) err(`${w}: unknown ambient ${c.ambient}`);
   if (!EXPR.has(c.expr)) err(`${w}: unknown expr ${c.expr}`);
   (c.needs || []).forEach(n => condOk(n, w + '.needs'));
@@ -57,7 +65,7 @@ for (const c of D.CARDS) {
   sides.forEach(k => {
     textOk(c[k].t, `${w}.${k}.t`, 52);
     if (c[k].roll) { (c[k].roll.mods || []).forEach(([cn]) => condOk(cn, w + '.roll')); outOk(c[k].win, `${w}.${k}.win`); outOk(c[k].lose, `${w}.${k}.lose`); }
-    else outOk(c[k], `${w}.${k}`);
+    else { outOk(c[k], `${w}.${k}`); unsetOk(c[k], `${w}.${k}`); }
   });
   if (c.kind === 'fate') { (c.roll.mods || []).forEach(([cn]) => condOk(cn, w + '.roll')); outOk(c.win, w + '.win'); outOk(c.lose, w + '.lose'); }
   (c.variants || []).forEach((v, i) => {
@@ -79,7 +87,7 @@ for (const flagsOn of [false, true]) {
   }
 }
 
-const perAct = D.ACTS.map((a, i) => ({ y: a.year, anchors: D.CARDS.filter(c => c.act === i && c.kind !== 'pool' && !c.last).length, pool: D.CARDS.filter(c => c.kind === 'pool' && c.acts.includes(i)).length, draw: a.pool }));
+const perAct = D.ACTS.map((a, i) => ({ y: a.year, anchors: D.CARDS.filter(c => c.act === i && c.kind !== 'pool' && !c.last).length, pool: D.CARDS.filter(c => c.kind === 'pool' && c.acts.includes(i)).length, risk: D.CARDS.filter(c => c.kind === 'risk' && c.acts.includes(i)).length, draw: a.pool }));
 console.log('cards:', D.CARDS.length, '| endings:', D.ENDINGS.length, '| flags set:', [...setFlags].length);
 console.table(perAct);
 warns.forEach(w => console.log('warn ', w));

@@ -35,8 +35,8 @@ function createGame(opts) {
   const S = {
     seed, g, name,
     e: R.start.e, p: R.start.p, c: R.start.c, v: R.start.v, stress: R.start.stress,
-    flags: {}, cnt: { ot: 0, yes: 0, extra: 0, body: 0, learn: 0, cam: 0, bound: 0, raises: 0 },
-    act: -1, actOt: 0, cursor: -1, queue: [], poolOrder: [], seen: {}, trig: {}, trigAct: {},
+    flags: {}, cnt: { ot: 0, yes: 0, extra: 0, body: 0, learn: 0, cam: 0, bound: 0, raises: 0, strain: 0, dx: 0, loans: 0, missed: 0, unemp: 0, care: 0 },
+    act: -1, actOt: 0, actTrig: 0, cursor: -1, queue: [], poolOrder: [], seen: {}, trig: {}, trigAct: {},
     history: [], over: null, current: null, played: 0
   };
 
@@ -72,15 +72,32 @@ function createGame(opts) {
   const fatigue = () => clamp((62 - S.e) / 62, 0, 1);
 
   /* ---------- acts ---------- */
+  /* chronic conditions: unmanaged ones drain Energía and Plata every year; managed ones only cost the treatment */
+  function chronic() {
+    let n = 0, m = 0;
+    (D.CONDITIONS || []).forEach(c => { if (S.flags[c.id]) { if (S.flags[c.care]) m++; else n++; } });
+    return { n, m };
+  }
   function yearTick() {
-    const k = R.cost;
-    const cost = Math.max(1, k.base + (S.flags.rent ? k.rent : 0) + (S.flags.baby ? k.baby : 0) + (S.flags.debt ? k.debt : 0) - k.raise * S.cnt.raises);
+    const k = R.cost, F = S.flags, ch = chronic(), CH = R.chronic || { e: 0, p: 0, care: 0 };
+    const cost = Math.max(1, k.base + (F.rent ? k.rent : 0) + (F.rent_alone ? k.rentAlone || 0 : 0) + (F.mortgage ? k.mortgage || 0 : 0) + (F.car_loan ? k.car || 0 : 0)
+      + (F.baby ? k.baby : 0) + (F.debt ? k.debt : 0) + (F.divorced ? k.divorce || 0 : 0) + (F.jobless ? k.jobless || 0 : 0) - k.raise * S.cnt.raises);
     const regen = Math.max(2, Math.round(R.regenBase - S.stress / 10));
+    const chE = ch.n * CH.e, chP = ch.n * CH.p + ch.m * CH.care;
     const absence = S.actOt * R.absence;
-    S.p = clamp(S.p - cost); S.e = clamp(S.e + regen); S.v = clamp(S.v - absence - (R.lifeDrain || 0)); S.stress = clamp(S.stress - R.stressDecay);
+    S.p = clamp(S.p - cost - chP); S.e = clamp(S.e + regen - chE); S.v = clamp(S.v - absence - (R.lifeDrain || 0)); S.stress = clamp(S.stress - R.stressDecay);
+    // family tension: a partner who gets the leftovers (burned-out, absent, always on) wears down; a healthy home or therapy eases it
+    if ((F.partner || F.baby) && !F.divorced) {
+      if (S.stress >= (R.strainStress || 50)) S.cnt.strain++;
+      if (S.v < (R.strainLife || 50)) S.cnt.strain++;
+      if (S.actOt >= 2) S.cnt.strain++;
+      if (S.cnt.strain > 0 && S.v >= (R.strainEase || 70)) S.cnt.strain--;
+      if (S.cnt.strain > 0 && F.therapy) S.cnt.strain--;
+      S.cnt.strain = clamp(S.cnt.strain, 0, 10);
+    }
     const dead = KEYS.find(x => S[x] <= 0);
     if (dead) S.over = dead;
-    return { cost, regen, absence: absence + (R.lifeDrain || 0) };
+    return { cost, regen, absence: absence + (R.lifeDrain || 0), health: { e: chE, p: chP } };
   }
   function startAct(i) {
     S.act = i;
@@ -98,7 +115,27 @@ function createGame(opts) {
     for (let k = 0; k < A.pool; k++) q.splice(Math.floor(rng() * (q.length + 1)), 0, { pool: true });
     finale.forEach(c => q.push({ card: c }));
     q.sort((x, y) => (y.card && y.card.first ? 1 : 0) - (x.card && x.card.first ? 1 : 0));   // stable: "first" cards open the act
-    S.queue = q;
+    // risk groups (health / family / work / money): stateful events rolled from YOUR situation, seeded
+    const RK = D.RISK || {}, order = Object.keys(RK), inj = [];
+    for (let x = order.length - 1; x > 0; x--) { const y = Math.floor(rng() * (x + 1)); const t = order[x]; order[x] = order[y]; order[y] = t; }
+    for (const gname of order) {
+      const cfg = RK[gname], roll = rng(), pickU = rng();
+      if (inj.length >= (D.RISK_CAP || 2)) continue;
+      if (i < cfg.from || (cfg.to != null && i > cfg.to) || !ok(cfg.needs)) continue;
+      let pr = cfg.base + (cfg.perAct || 0) * Math.max(0, i - cfg.from);
+      (cfg.mods || []).forEach(([cnd, add]) => { if (test(cnd)) pr += add; });
+      pr = Math.max(0, Math.min(0.9, pr));
+      if (roll >= pr) continue;
+      const cands = D.CARDS.filter(c => c.kind === 'risk' && c.group === gname && !S.seen[c.id] && (!c.acts || c.acts.includes(i)) && ok(c.needs));
+      if (!cands.length) continue;
+      const tot = cands.reduce((a2, c) => a2 + (c.weight || 1), 0);
+      let u = pickU * tot, pick = cands[cands.length - 1];
+      for (const c of cands) { u -= (c.weight || 1); if (u <= 0) { pick = c; break; } }
+      inj.push(pick);
+    }
+    const headFixed = q.filter(x => x.card && x.card.first).length;
+    inj.forEach(c => { const lo = headFixed, hi = q.length - finale.length; q.splice(lo + Math.floor(rng() * (hi - lo + 1)), 0, { card: c }); });
+    S.queue = q; S.actTrig = 0;
     S.cursor = i === 0 ? 8 : -1;   // month cursor so labels only move forward inside a year
     return { act: A, index: i, tick };
   }
@@ -111,6 +148,7 @@ function createGame(opts) {
       if (c.kind !== 'trigger') continue;
       if ((S.trig[c.id] || 0) >= (c.max || 1)) continue;
       if (c.gap && S.trigAct[c.id] != null && S.act - S.trigAct[c.id] < c.gap) continue;
+      if (!c.chain && S.actTrig >= (D.TRIG_CAP || 1)) continue;   // chain triggers (unemployment sequence) are exempt
       if (ok(c.needs)) return c;
     }
     return null;
@@ -136,11 +174,14 @@ function createGame(opts) {
     if (theme === 'parents') P.push('curtain');
     let mid = A.mid;
     let low = S.flags.baby ? (S.act <= 4 ? 'crib' : 'kid') : (S.flags.laid_off && S.act === 4 ? 'boxes' : (S.act === 7 ? 'plant' : 'shelf'));
+    if (mid === 'frame' && (S.flags.separated || S.flags.divorced)) mid = 'frameempty';   // the family photo is gone
+    else if (mid === 'frame' && low === 'crib') mid = null;                                // the crib stands where the photo hangs
     if (amb === 'drill') mid = 'drill';
     if (amb === 'baby') { low = 'cribcry'; mid = null; P.splice(P.indexOf('clock'), 1); }
     else if (amb === 'kid') { low = 'kidwave'; mid = null; P.splice(P.indexOf('clock'), 1); }
     else if (amb === 'mom') { low = 'door'; mid = null; P.splice(P.indexOf('clock'), 1); }
-    let left = c.left || (S.flags.sick_now ? 'pills' : (S.cnt.ot >= 2 ? 'stickies' : (S.stress >= 40 ? 'mugs' : null)));
+    const sickish = S.flags.sick_now || (S.act >= 3 && chronic().n >= 1);
+    let left = c.left || (S.flags.sick_now ? 'pills' : S.flags.jobless ? 'bills' : sickish ? 'pills' : S.flags.debt ? 'bills' : (S.cnt.ot >= 2 ? 'stickies' : (S.stress >= 40 ? 'mugs' : null)));
     if (amb === 'camotero') left = 'camotero';
     if (mid) P.push(mid);
     if (low) P.push(low);
@@ -165,7 +206,7 @@ function createGame(opts) {
   }
   function deliver(c) {
     S.seen[c.id] = 1;
-    if (c.kind === 'trigger') { S.trig[c.id] = (S.trig[c.id] || 0) + 1; S.trigAct[c.id] = S.act; }
+    if (c.kind === 'trigger') { S.trig[c.id] = (S.trig[c.id] || 0) + 1; S.trigAct[c.id] = S.act; if (!c.chain) S.actTrig++; }
     const rc = resolve(c);
     if (rc.enter && rc.enter.set) rc.enter.set.forEach(f => { S.flags[f] = 1; });
     const card = Object.assign({}, rc, { text: tpl(rc.text), from: resolveFrom(rc.from) });
@@ -218,6 +259,8 @@ function createGame(opts) {
     (out.unset || []).forEach(f => { delete S.flags[f]; });
     Object.entries(out.count || {}).forEach(([n, v]) => { S.cnt[n] = (S.cnt[n] || 0) + v; });
     if (out.raise) S.cnt.raises += out.raise;
+    if (out.count && out.count.ot && (S.flags.partner || S.flags.baby) && !S.flags.divorced) S.cnt.strain += 1;   // every late night is felt at home
+    S.cnt.strain = clamp(S.cnt.strain, 0, 10);
     const deltas = {};
     KEYS.forEach(x => { deltas[x] = S[x] - before[x]; });
     const view = Object.assign({}, c.view, { props: c.view.props.concat(out.addProps || []), camOff: false });

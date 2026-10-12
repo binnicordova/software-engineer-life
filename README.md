@@ -19,6 +19,8 @@
 
 Un periodo de prueba sin sueldo. Una cuarentena. Horas extra “por favor”. Un mentor que renuncia. Un bebé que llora en el *daily*. Recortes. Un ascenso **sin aumento**. Un agente de IA que “duplica tu productividad”.
 
+Y después de unos años, **la factura**: la espalda, el hígado graso, la prediabetes, el colon irritable, la vesícula; la pareja que ya casi no te ve; la evaluación de desempeño que sale mal; el mes sin sueldo; la cuota del auto, de la casa o del alquiler que no espera.
+
 Tú no eres el ingeniero: **eres la webcam de su laptop**. Lo ves vivir siete años y, cada vez que le llega una notificación, decides por él o ella: **A o B**. Nadie te preguntó qué opinas… hasta ahora.
 
 **Tu meta:** llegar a **2026** sin que se te acabe ningún medidor.
@@ -30,10 +32,10 @@ Tú no eres el ingeniero: **eres la webcam de su laptop**. Lo ves vivir siete a�
 | 📈 **Carrera** | Reputación y visibilidad |
 | ❤️ **Vida** | Familia, amigos, cabeza |
 
-Cada opción **cuesta algo**: aceptar el “favorcito” te da Carrera pero te quita Energía y Vida; poner un límite te cuida, pero Marcos lo anota. No hay una respuesta correcta, solo **15 finales** distintos y una pregunta para cuando termines: *¿qué final te sale a ti?*
+Cada opción **cuesta algo**: aceptar el “favorcito” te da Carrera pero te quita Energía y Vida; poner un límite te cuida, pero Marcos lo anota. No hay una respuesta correcta, solo **19 finales** distintos y una pregunta para cuando termines: *¿qué final te sale a ti?*
 
 - Si **un medidor llega a cero**, la historia termina ahí: *Burnout Certificado*, *Cuenta en Cero*, *Ghosteado por RRHH*, *Cero Bugs, Cero Invitados*…
-- Si **llegas a 2026**, tu vida decide el final: *El Equilibrista*, *Tech Lead sin Aumento*, *Mentor de Alguien*, *Despedido y Mejor Pagado*, *El Cuerpo Cobra*… y más.
+- Si **llegas a 2026**, tu vida decide el final: *El Equilibrista*, *Tech Lead sin Aumento*, *Mentor de Alguien*, *Despedido y Mejor Pagado*, *El Cuerpo Cobra*, *Domingos Alternados*, *Cuotas de por Vida*, *Reinicio Forzado*, *Paciente Frecuente*… y más.
 - Tu última decisión (**vibecodear el sábado o cerrar la laptop y salir a caminar**) queda como un *epílogo* en cualquier final.
 
 ---
@@ -96,11 +98,13 @@ Al terminar, el juego revela una **tira Photo Booth** con cuatro cuadros de *tu*
 |---|---|
 | 🧑‍🏫 **El mentor** | Rodrigo te enseña en 2019 → se va a una empresa en dólares (2021) → te puede referir si te despiden (2023) → un practicante te pide ayuda (2025). |
 | 💸 **El sueldo** | “Es un favorcito, no se paga pero se valora”. Horas extra, ascenso sin aumento, el 7.º aniversario en *la misma banda salarial*. |
-| 🫀 **El cuerpo** | El estrés oculto se acumula → la doctora te lo advierte → si lo ignoras, el cuerpo cobra. |
-| 🏡 **La casa** | Aportar en casa, la feria de papá que cierra, mudarse con tu pareja, un bebé, un peque saludando en cámara. |
+| 🫀 **El cuerpo** | El estrés oculto se acumula → la doctora te lo advierte → si lo ignoras, el cuerpo cobra. Desde el 3.er año llegan los **diagnósticos de la silla**: espalda, hemorroides, hígado graso, prediabetes, colon irritable, sobrepeso… y la **vesícula**. Cada uno se atiende (cuesta plata y tiempo) o se ignora (cuesta Energía **cada año**). |
+| 🏡 **La casa** | Aportar en casa, la feria de papá que cierra, mudarse con tu pareja, un bebé, un peque saludando en cámara. Si el trabajo se come las noches, crece la **tensión en casa**: aniversarios que se pasan, peleas, reuniones del colegio, una caída en el parque… hasta la **separación** y el **divorcio** (o la terapia de pareja a tiempo). |
+| 💼 **El trabajo** | Evaluaciones que salen “parcialmente”, **temporadas altas** de esfuerzo extra, feedback malo, conflictos con colegas, un **incendio en producción a las 3 a. m.**, una renuncia “acordada” o un despido por desempeño → **meses sin ingresos** y 100 postulaciones. |
+| 💳 **Los compromisos** | Independizarte (alquiler), el **crédito del auto**, la **hipoteca**, la tarjeta “bola de nieve”, el préstamo a un familiar. Cada compromiso suma un costo fijo al año… y no se pausa cuando te quedas sin trabajo. |
 | 🌎 **El mundo** | Cuarentena (2020), recortes (2023), el agente de IA (2025)… y un sábado de octubre de 2026 en Lima. |
 
-49 escenas · 15 finales · 8 actos (2019 → 2026) · acento limeño (S/, quincena, menú, camotero).
+78 escenas · 19 finales · 8 actos (2019 → 2026) · acento limeño (S/, quincena, menú, camotero).
 
 ---
 
@@ -113,7 +117,9 @@ Cuando estudias (o recién empiezas), es fácil imaginar la carrera como una lí
 | 🤝 **Firmar o negociar** | Un “periodo de prueba” sin sueldo, un primer contrato, pedir más: ¿cuándo se negocia y cuándo se acepta? |
 | 🎲 **Tomar riesgos con cabeza** | Condicionar un ascenso, pedir un aumento, aceptar acciones en vez de sueldo: cada riesgo tiene probabilidad y un costo si sale mal. |
 | 🧭 **Estrategia a largo plazo** | Decir “sí” a todo, aprender de otros, cambiar de trabajo o quedarte: pequeñas decisiones que se acumulan durante años. |
-| 🫀 **Cuidar tu salud** | El estrés se acumula en silencio y el cuerpo avisa. ¿Qué pasa si lo ignoras? |
+| 🫀 **Cuidar tu salud** | El estrés se acumula en silencio y el cuerpo avisa: espalda, hígado, azúcar, colon. ¿Qué pasa si lo ignoras… y cuánto cuesta atenderlo a tiempo? |
+| 🏡 **Equilibrar trabajo y familia** | Cada “un ratito más” se cobra en casa. ¿Cuándo es compromiso y cuándo es ausencia? |
+| 💳 **Compromisos financieros** | Auto, casa, tarjeta, alquiler: ¿qué cuota firmarías con un colchón y cuál esperarías? ¿Qué pasa con las cuotas si pierdes tu trabajo? |
 | 👥 **Tu red y tus mentores** | Quien te enseñó un día puede ser quien te recomiende cuando el mercado cambia. |
 | 🤖 **Adaptarte a la IA** | Aprender a dirigirla o resistirte: ¿qué ganas y qué pierdes con cada camino? |
 
@@ -149,6 +155,6 @@ Guía completa (estructura, cómo escribir escenas, despliegue): [`docs/DEVELOPM
 
 ## 🇬🇧 In English
 
-**Software Engineer LIFE — *camera on*** is a mobile-first narrative game. You are the webcam of a software engineer in Lima, 2019 → 2026: each scene is a notification with two choices (A/B) about unpaid overtime, a pandemic, a mentor who leaves, a baby crying on a team call, layoffs, a promotion without a raise and an AI agent that “doubles your output”. Keep four meters (Energy, Money, Career, Life) above zero to reach 2026, discover 15 endings, and share your result as a Photo Booth strip. Built with vanilla JS and generated SVG art, no dependencies; playable at **https://binnicordova.github.io/software-engineer-life/**. Text is in Spanish.
+**Software Engineer LIFE — *camera on*** is a mobile-first narrative game. You are the webcam of a software engineer in Lima, 2019 → 2026: each scene is a notification with two choices (A/B) about unpaid overtime, a pandemic, a mentor who leaves, a baby crying on a team call, layoffs, a promotion without a raise and an AI agent that “doubles your output”. Keep four meters (Energy, Money, Career, Life) above zero to reach 2026, discover 19 endings, and share your result as a Photo Booth strip. Built with vanilla JS and generated SVG art, no dependencies; playable at **https://binnicordova.github.io/software-engineer-life/**. Text is in Spanish.
 
 <div align="center"><sub>Hecho para el reto <b>Vibecodea un juego</b> de Hack the Andes · #HackTheAndes</sub></div>

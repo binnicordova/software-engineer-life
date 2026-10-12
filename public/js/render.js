@@ -1,7 +1,7 @@
 /* Software Engineer LIFE — rendering. Vector webcam scenes (SVG strings) + the Photo Booth share card (canvas).
  * Everything is drawn in code so the game ships with zero image assets; Gemini plates can replace layers later.
  * Slots keep the composition clean:
- *   L-top window · L-bottom stickies|mugs|pills|camotero · R-top clock · R-mid frame|calendar|chatai|drill|helmet · R-low shelf|plant|crib|kid|boxes|door
+ *   L-top window · L-bottom stickies|mugs|pills|bills|camotero · R-top clock · R-mid frame|frameempty|calendar|chatai|drill|helmet · R-low shelf|plant|crib|kid|boxes|door
  */
 (function (root) {
 'use strict';
@@ -109,6 +109,7 @@ function props(list, T, o, u) {
   if (has('window')) s += windowSvg(T, o, u, has);
   if (has('clock')) s += `<circle cx="334" cy="242" r="18" fill="#F8F5EE" stroke="#2a2a33" stroke-width="3"/>${clockHands(o.time || '09:00', 334, 242)}<circle cx="334" cy="242" r="2.4" fill="#2a2a33"/>`;
   if (has('frame')) s += `<g transform="translate(100 168)"><rect x="178" y="96" width="60" height="74" rx="4" fill="#fff"/><rect x="184" y="102" width="48" height="62" fill="#E7D5B6"/><circle cx="208" cy="124" r="9" fill="#F2A65A"/><path d="M184 164 L200 138 L212 154 L222 142 L232 164Z" fill="${T.accent}"/></g>`;
+  if (has('frameempty')) s += `<g transform="translate(100 168)"><rect x="178" y="96" width="60" height="74" rx="4" fill="#fff"/><rect x="184" y="102" width="48" height="62" fill="#EDE6DA"/><rect x="190" y="110" width="36" height="46" rx="2" fill="none" stroke="#D2C7B6" stroke-width="2" stroke-dasharray="4 4"/><path d="M178 102 L192 118 L186 130 L204 146 L196 158 L212 170" fill="none" stroke="#9aa3ad" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/></g>`;
   if (has('calendar')) s += `<g transform="translate(100 168)"><rect x="178" y="96" width="58" height="72" rx="4" fill="#fff"/><rect x="178" y="96" width="58" height="14" rx="4" fill="#C94B4B"/><g fill="#9aa3ad">${Array.from({ length: 20 }, (_, i) => `<rect x="${184 + (i % 5) * 9.4}" y="${116 + Math.floor(i / 5) * 11}" width="6" height="6" rx="1"/>`).join('')}</g><path d="M184 118 l42 40 M226 118 l-42 40" stroke="#C94B4B" stroke-width="2" opacity=".7"/></g>`;
   if (has('shelf')) {
     const bk = [['#C8553D', 10, 32], ['#3F6C8F', 8, 24], ['#E0B24D', 12, 35], ['#6D8F5E', 9, 27], ['#8C5F8F', 10, 30]]; let bx = 266;
@@ -125,6 +126,7 @@ function props(list, T, o, u) {
     if (has('mugs')) s += [0, 1, 2].map(i => `<g transform="translate(${28 + i * 28} 368)"><rect width="22" height="26" rx="4" fill="${['#F4EFE6', '#7FB6D6', '#F2A65A'][i]}"/><path d="M22 7 q9 0 9 8 t-9 8" fill="none" stroke="${['#F4EFE6', '#7FB6D6', '#F2A65A'][i]}" stroke-width="4"/></g>`).join('') + '<path class="steam" d="M39 362 q-4 -8 0 -14" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".6"/>';
     if (has('pills')) s += '<g transform="translate(34 362)"><rect width="22" height="32" rx="4" fill="#E8883A"/><rect x="-1" y="-6" width="24" height="9" rx="3" fill="#fff"/></g><path d="M74 394 l-3 -26 h22 l-3 26z" fill="#BFE3F5" opacity=".7"/>';
   }
+  if (has('bills')) s += '<rect x="22" y="394" width="96" height="6" rx="2" fill="#6B4A35"/>' + [['#F4EFE6', -7, 0], ['#F7E6C8', 4, 5], ['#E9F0F6', -3, 10]].map(([c, r, dy], i) => `<g transform="rotate(${r} ${66 + i * 6} ${376 + dy})"><rect x="${28 + i * 8}" y="${360 + dy}" width="58" height="34" rx="3" fill="${c}" stroke="#9aa3ad" stroke-width="1.2"/><path d="M${28 + i * 8} ${360 + dy} l29 18 l29 -18" fill="none" stroke="#9aa3ad" stroke-width="1.2"/></g>`).join('') + '<g transform="rotate(8 98 372)"><rect x="80" y="352" width="28" height="22" rx="3" fill="#C94B4B"/><path d="M85 358 h18 M85 364 h12" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></g>';
   if (has('camotero')) s += bubble(22, 332, 100, '¡Piiiiii!', '#C94B4B', 15, 'none') + '<path d="M108 330 l8 -8 M112 340 l11 -3" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".8"/>';
   const cribSvg = cry => `<g transform="translate(0 -74)"><g class="${cry ? 'shake' : ''}"><circle cx="332" cy="366" r="21" fill="#E3AE86"/><path d="M322 348 q10 -8 20 0" stroke="#3a2a22" stroke-width="3" fill="none" stroke-linecap="round"/>
       ${cry ? '<path d="M322 362 l7 3 M342 362 l-7 3" stroke="#3a2a22" stroke-width="2.6" stroke-linecap="round"/><ellipse class="cry" cx="332" cy="378" rx="5.5" ry="7" fill="#7A2E2E"/><path d="M318 368 q-3 8 0 10 M346 368 q3 8 0 10" stroke="#8ED8FF" stroke-width="3" fill="none" stroke-linecap="round"/>'
