@@ -5,7 +5,7 @@
 
 **Eres la webcam de un dev en Lima. 2019 → 2026. Dos opciones por escena. Una vida entera.**
 
-[**▶ Jugar ahora**](https://binnicordova.github.io/software-engineer-life/) · pensado para el **celular** · ~4 min · gratis, sin registro
+[**▶ Jugar ahora**](https://binnicordova.github.io/software-engineer-life/) · pensado para el **celular** · ~5 min · gratis, sin registro
 
 <img src="docs/screens/og.jpg" alt="Software Engineer LIFE — la misma persona en 2019 y en 2026" width="640">
 
@@ -32,10 +32,10 @@ Tú no eres el ingeniero: **eres la webcam de su laptop**. Lo ves vivir siete a�
 | 📈 **Carrera** | Reputación y visibilidad |
 | ❤️ **Vida** | Familia, amigos, cabeza |
 
-Cada opción **cuesta algo**: aceptar el “favorcito” te da Carrera pero te quita Energía y Vida; poner un límite te cuida, pero Marcos lo anota. No hay una respuesta correcta, solo **19 finales** distintos y una pregunta para cuando termines: *¿qué final te sale a ti?*
+Cada opción **cuesta algo**: aceptar el “favorcito” te da Carrera pero te quita Energía y Vida; poner un límite te cuida, pero Marcos lo anota. No hay una respuesta correcta, solo **25 finales** distintos y una pregunta para cuando termines: *¿qué final te sale a ti?*
 
 - Si **un medidor llega a cero**, la historia termina ahí: *Burnout Certificado*, *Cuenta en Cero*, *Ghosteado por RRHH*, *Cero Bugs, Cero Invitados*…
-- Si **llegas a 2026**, tu vida decide el final: *El Equilibrista*, *Tech Lead sin Aumento*, *Mentor de Alguien*, *Despedido y Mejor Pagado*, *El Cuerpo Cobra*, *Domingos Alternados*, *Cuotas de por Vida*, *Reinicio Forzado*, *Paciente Frecuente*… y más.
+- Si **llegas a 2026**, tu vida decide el final: *El Equilibrista*, *Tech Lead sin Aumento*, *Mentor de Alguien*, *Despedido y Mejor Pagado*, *El Cuerpo Cobra*, *Domingos Alternados*, *Cuotas de por Vida*, *Reinicio Forzado*, *Paciente Frecuente*, *Tech Lead de Una Sola Empresa*, *Sin Inglés, Sin Salida*, *AI Engineer (Mismo Sueldo)*, *Tu Rol Ahora Es un Prompt*, *Te Fuiste a Tiempo*… y más.
 - Tu última decisión (**vibecodear el sábado o cerrar la laptop y salir a caminar**) queda como un *epílogo* en cualquier final.
 
 ---
@@ -54,6 +54,8 @@ Todo el juego se ve **a través de una cámara web**, nunca fuera de ella.
 </table>
 
 **Lo que hace que se sienta como una webcam, no como un menú:**
+
+- 🪪 **Eres tú.** Eliges personaje (**ella** o **él**), escribes tu nombre y ves cómo aparece al instante bajo las dos caras, como en una videollamada. Durante la partida la webcam lleva tu etiqueta (*Juan Carlos · (Tú)*, con el micrófono en mute cuando la cámara se apaga) y tu jefe, tu mamá, tu pareja, la doctora y tus amigos te hablan **por tu nombre** (en 1 de cada 3 escenas). El género cambia también la gramática (*Ghosteada / Ghosteado*, *La Equilibrista / El Equilibrista*) y el final se titula **“Final de tu nombre”**; tu tira Photo Booth lleva tu nombre arriba.
 
 - 🎞️ **La imagen es el medidor.** Mientras baja la Energía, la cámara pierde color, se oscurece y aparece grano. Los ojos del ingeniero se cansan, le salen ojeras y, desde 2021, lentes.
 - 🏠 **El cuarto cuenta la historia.** Sin texto: más *stickies* en la pared cuando te quedas “un ratito más”, tazas que se acumulan con el estrés, cajas de cartón si te despiden, una cuna que después es un peque saludando a cámara.
@@ -96,21 +98,25 @@ Al terminar, el juego revela una **tira Photo Booth** con cuatro cuadros de *tu*
 
 | Hilo | Cómo evoluciona |
 |---|---|
-| 🧑‍🏫 **El mentor** | Rodrigo te enseña en 2019 → se va a una empresa en dólares (2021) → te puede referir si te despiden (2023) → un practicante te pide ayuda (2025). |
+| 🧑‍🏫 **El mentor** | Rodrigo te enseña en 2019 → se va a una empresa en dólares (2021) → te puede referir si te despiden (2023)… si tu inglés pasa el filtro → un practicante sin vacantes te pide una carta (2025). |
 | 💸 **El sueldo** | “Es un favorcito, no se paga pero se valora”. Horas extra, ascenso sin aumento, el 7.º aniversario en *la misma banda salarial*. |
+| 🗣️ **El inglés (18 meses)** | En 2019 un cliente de Texas te escribe en inglés. Estudiar son **18 meses de clases de noche**; no hacerlo es gratis hoy. La cuenta llega después: la referencia de Rodrigo, la entrevista en dólares de 2024 y casi todas las vacantes de 2026 piden inglés. Empezar tarde sigue costando 18 meses, contados desde hoy. |
+| 📉 **Tu valor de mercado** | Un medidor oculto (**vigencia**) baja cada año… y más rápido cuanto más tiempo llevas en el mismo puesto: a los ~3 años descubres que tu perfil cobra casi el doble afuera; a los ~5, que en tu empresa eres *lead* pero en el mercado un *mid con stack de 2019*. El final te muestra las dos caras: *“Tu empresa: Tech Lead · El mercado: Mid”*. |
+| 🚪 **Irte a tiempo** | A ~año y medio la empresa te suma proyectos, nunca sueldo. Si aceptas todo, llega la mala evaluación y luego el despido. Si **mandas CVs antes**, un año después hay entrevistas: ganarlas depende de tu vigencia, tu inglés y tu energía. Cambiar de empresa reinicia el reloj (y el reparto: nuevo jefe, nueva RR. HH.). |
 | 🫀 **El cuerpo** | El estrés oculto se acumula → la doctora te lo advierte → si lo ignoras, el cuerpo cobra. Desde el 3.er año llegan los **diagnósticos de la silla**: espalda, hemorroides, hígado graso, prediabetes, colon irritable, sobrepeso… y la **vesícula**. Cada uno se atiende (cuesta plata y tiempo) o se ignora (cuesta Energía **cada año**). |
 | 🏡 **La casa** | Aportar en casa, la feria de papá que cierra, mudarse con tu pareja, un bebé, un peque saludando en cámara. Si el trabajo se come las noches, crece la **tensión en casa**: aniversarios que se pasan, peleas, reuniones del colegio, una caída en el parque… hasta la **separación** y el **divorcio** (o la terapia de pareja a tiempo). |
 | 💼 **El trabajo** | Evaluaciones que salen “parcialmente”, **temporadas altas** de esfuerzo extra, feedback malo, conflictos con colegas, un **incendio en producción a las 3 a. m.**, una renuncia “acordada” o un despido por desempeño → **meses sin ingresos** y 100 postulaciones. |
 | 💳 **Los compromisos** | Independizarte (alquiler), el **crédito del auto**, la **hipoteca**, la tarjeta “bola de nieve”, el préstamo a un familiar. Cada compromiso suma un costo fijo al año… y no se pausa cuando te quedas sin trabajo. |
+| 🤖 **La IA (2025-2026)** | El cargo *Software Engineer* **desaparece**: ahora todos son *AI Engineer*, con el mismo sueldo. Una segunda ola de despidos “por eficiencia”; si sobrevives, heredas los tickets de los que salieron. El código generado por IA rompe producción, QA rechaza 47 observaciones y alguien mergea un PR sin leerlo… todo en plena **temporada alta**. Y ya no hay vacantes junior. |
 | 🌎 **El mundo** | Cuarentena (2020), recortes (2023), el agente de IA (2025)… y un sábado de octubre de 2026 en Lima. |
 
-78 escenas · 19 finales · 8 actos (2019 → 2026) · acento limeño (S/, quincena, menú, camotero).
+94 escenas · 25 finales · 8 actos (2019 → 2026) · acento limeño (S/, quincena, menú, camotero).
 
 ---
 
 ## 🎓 Para juniors y estudiantes: una posible realidad antes de vivirla
 
-Cuando estudias (o recién empiezas), es fácil imaginar la carrera como una línea recta: título → buen trabajo → ascenso → mejor sueldo. El juego muestra, en 4 minutos y con humor, **cómo esa línea se tuerce según tus decisiones**, y te deja con preguntas en vez de respuestas:
+Cuando estudias (o recién empiezas), es fácil imaginar la carrera como una línea recta: título → buen trabajo → ascenso → mejor sueldo. El juego muestra, en 5 minutos y con humor, **cómo esa línea se tuerce según tus decisiones**, y te deja con preguntas en vez de respuestas:
 
 | Decisión | Lo que te hace pensar |
 |---|---|
@@ -121,13 +127,16 @@ Cuando estudias (o recién empiezas), es fácil imaginar la carrera como una lí
 | 🏡 **Equilibrar trabajo y familia** | Cada “un ratito más” se cobra en casa. ¿Cuándo es compromiso y cuándo es ausencia? |
 | 💳 **Compromisos financieros** | Auto, casa, tarjeta, alquiler: ¿qué cuota firmarías con un colchón y cuál esperarías? ¿Qué pasa con las cuotas si pierdes tu trabajo? |
 | 👥 **Tu red y tus mentores** | Quien te enseñó un día puede ser quien te recomiende cuando el mercado cambia. |
-| 🤖 **Adaptarte a la IA** | Aprender a dirigirla o resistirte: ¿qué ganas y qué pierdes con cada camino? |
+| 🤖 **Adaptarte a la IA** | Aprender a dirigirla o resistirte: ¿qué ganas y qué pierdes con cada camino? Cuando el cargo cambia de nombre, ¿qué te protege? |
+| 🗣️ **Aprender inglés** | Hoy cuesta una tarde a la semana; mañana puede cerrarte la puerta. ¿Qué “después” te estás regalando? |
+| 📉 **Mirar el mercado** | ¿Cuándo comparaste tu sueldo y tus habilidades con lo que paga el mercado? Ser imprescindible en tu empresa no es lo mismo que ser empleable afuera. |
+| 🚪 **Irte a tiempo** | Mandar CVs *antes* del mal feedback, no después: ¿qué señal te diría que es hora de moverte? |
 
 Cada final termina con una tarjeta **“Para pensar”** (por ejemplo: *¿Estar siempre disponible es compromiso o miedo?*).
 
 **Úsalo en clase, en un meetup o con tu comunidad (20 minutos):**
 
-1. Cada persona juega una partida (4 min) desde su celular.
+1. Cada persona juega una partida (5 min) desde su celular.
 2. Comparen finales y medidores: ¿quién llegó a 2026? ¿quién se quedó sin Energía, Plata, Carrera o Vida?
 3. Elijan una decisión y debátanla: *¿qué harías distinto en la vida real, y por qué?*
 4. **Reten al grupo:** con *Retar a un amigo*, todos juegan **el mismo mundo** (mismos eventos y mismos dados) y comparan cómo cada decisión cambia el resultado.
@@ -138,7 +147,7 @@ Cada final termina con una tarjeta **“Para pensar”** (por ejemplo: *¿Estar 
 
 ## 🛠️ Para devs
 
-- **Stack:** HTML + CSS + JavaScript puro. **Sin dependencias ni build.** Todo el arte es SVG generado por código (cero imágenes del juego). ~48 KB comprimido.
+- **Stack:** HTML + CSS + JavaScript puro. **Sin dependencias ni build.** Todo el arte es SVG generado por código (cero imágenes del juego). ~66 KB comprimido.
 - **Motor sin DOM** (`public/js/engine.js`) con azar determinista por semilla → por eso existe el reto entre amigos y un **simulador de balance** (`node tools/sim.mjs`) que juega miles de partidas con bots.
 - **PWA:** funciona sin conexión después de la primera carga (pensado para el Wi-Fi de un evento).
 - **Contenido como datos:** todas las escenas, finales y reglas están en [`public/js/data.js`](public/js/data.js).
@@ -155,6 +164,6 @@ Guía completa (estructura, cómo escribir escenas, despliegue): [`docs/DEVELOPM
 
 ## 🇬🇧 In English
 
-**Software Engineer LIFE — *camera on*** is a mobile-first narrative game. You are the webcam of a software engineer in Lima, 2019 → 2026: each scene is a notification with two choices (A/B) about unpaid overtime, a pandemic, a mentor who leaves, a baby crying on a team call, layoffs, a promotion without a raise and an AI agent that “doubles your output”. Keep four meters (Energy, Money, Career, Life) above zero to reach 2026, discover 19 endings, and share your result as a Photo Booth strip. Built with vanilla JS and generated SVG art, no dependencies; playable at **https://binnicordova.github.io/software-engineer-life/**. Text is in Spanish.
+**Software Engineer LIFE — *camera on*** is a mobile-first narrative game. You are the webcam of a software engineer in Lima, 2019 → 2026: each scene is a notification with two choices (A/B) about unpaid overtime, a pandemic, a mentor who leaves, a baby crying on a team call, layoffs, a promotion without a raise and an AI agent that “doubles your output”. Keep four meters (Energy, Money, Career, Life) above zero to reach 2026, discover 25 endings, and share your result as a Photo Booth strip. Built with vanilla JS and generated SVG art, no dependencies; playable at **https://binnicordova.github.io/software-engineer-life/**. Text is in Spanish.
 
 <div align="center"><sub>Hecho para el reto <b>Vibecodea un juego</b> de Hack the Andes · #HackTheAndes</sub></div>

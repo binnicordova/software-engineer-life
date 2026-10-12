@@ -21,7 +21,7 @@ No build step, no dependencies. (Opening `public/index.html` straight from disk 
 public/
   index.html            shell: title · pick · play · end · overlays
   css/game.css          styles (phone-first; desktop = phone frame)
-  js/data.js            ALL content: acts, cast, 78 scenes, 19 endings, risk groups, recap, tuning knobs
+  js/data.js            ALL content: acts, cast, 94 scenes, 25 endings, risk groups, recap, tuning knobs
   js/engine.js          DOM-free game logic (seeded RNG, scheduling, conditions, endings)
   js/render.js          SVG webcam rooms + engineer + Photo Booth share card (canvas)
   js/audio.js           synthesized SFX (no audio files)
@@ -41,18 +41,25 @@ tools/
 node tools/check.mjs                 # lint content — run after editing data.js
 node tools/sim.mjs 4000              # balance: survival + ending distribution per bot
 node tools/sim.mjs 4000 gain=0.9 cost.base=3     # try tuning knobs without editing files
+ONLY=random,proactive QUIET=1 node tools/sim.mjs 3000   # pick bots: random · grind · balanced · workaholic · hermit · proactive (studies English, leaves in time) · comfy (never invests) · caring
 SITE_URL=https://your-game.pages.dev node tools/build-ending-pages.mjs   # absolute og: URLs
 ```
 
 ### Writing content (`public/js/data.js`)
 
-- **Text tokens:** `{n}` name · `{o}` o/a · `{#ot}` counter · `{?flag|si|no}` inline condition (`ot>=3`, `!laid_off`, `c>=60`…).
-- **Outcome keys:** `fx{e,p,c,v}` · `st` (hidden stress) · `set[]`/`unset[]` flags · `count{ot,bound,…}` · `raise` · `res` · `expr` · `addProps`.
+- **Text tokens:** `{n}` the player's name · `{o}` o/a · `{#ot}` counter · `{?flag|si|no}` inline condition (`ot>=3`, `!laid_off`, `c>=60`…) · `{?fem|La|El}` branches on the character's gender (use it for articles and nouns; `{o}` for adjectives/participles; static ending pages render it as `El/La`).
+- **The player's name:** typed in the picker, cleaned by `cleanName()` in `app.js` (letters/digits/`. ' -` only, tidy casing, first name if it won't fit in 14 chars, falls back to Camila/Diego), saved in `localStorage` and passed to `createGame({ name, gender })`. Have NPCs say it where a person would (greeting, a serious talk, a favour: `“{n}, quédate 30 minutos…”`), about 1 scene in 3. `node tools/check.mjs` prints the coverage and measures copy with a 14-character name.
+- **Outcome keys:** `fx{e,p,c,v}` · `st` (hidden stress) · `mk` (market vigencia, ±) · `set[]`/`unset[]` flags · `count{ot,bound,eng,jumps,wall,…}` · `raise` · `newjob` (changes company: resets tenure, clears `D.JOB_FLAGS`, renames the cast) · `res` · `expr` · `addProps`.
 - **Scene kinds:** `anchor` (fixed per act; `first`/`last`/`fix`) · `pool` (random, by `acts`) · `trigger` (hidden-state driven; `chain: true` = follow-up of an earlier event, not counted against `D.TRIG_CAP`) · `fate` (one button, rolled) · `risk` (belongs to a `group` in `D.RISK`; see below).
 - **Risk groups (`D.RISK`):** at the start of each year the engine rolls, per group (`health`, `family`, `work`, `money`), `base + perAct·(act−from) + Σ mods that hold now` (seeded; capped by `D.RISK_CAP`) and injects one eligible `risk` card of that group (same `needs`/`acts` filters). That is how a stressed or overworked player meets *espalda*, *pelea*, *evaluación baja*… more often than a balanced one.
 - **Chronic conditions (`D.CONDITIONS`):** `{ id, care }` flag pairs. A diagnosed condition drains `R.chronic.e` Energía and `R.chronic.p` Plata **every year**; if the `care` flag is set it only costs `R.chronic.care` Plata (treatment).
+- **Market vigencia (`mk`, hidden 0-100) & tenure:** `mk` is what the *market* thinks of your skills and pay (Carrera is your standing *inside* the company). It starts at `R.market.start` and loses `decay` every year, plus `drag3`/`drag5` once the **same job** has lasted ≥3 / ≥5 years (`tenure = act − jobAct`, computed), plus `ai` from 2025. Learning, English, searching and leaving raise it via `mk:` on outcomes. Use `mk>=55`, `mk<35`, `tenure>=3` in `needs`/`roll.mods`. It is surfaced only as a year-card hint and in the end recap (`D.ROLES` × `D.LEVELS`: *"Tu empresa: Tech Lead · El mercado: Mid"*), never as a number.
+- **`<flag>_ago`:** years since a flag was set (−1 if unset), e.g. `overloaded_ago>=1`. It is how consequences arrive a year later (CVs sent → interviews; overload → bad review → PIP → fired).
+- **Career-risk chain:** `sobrecarga` (scope added, no raise) → `overloaded` (−`R.overloadE` Energía/yr) → `feedback-sobrecarga` → `pip` → `despido-*`; or `searching` (−`R.searchE`/yr) → `entrevistas` (a year later; roll on `mk`/`eng`/era; win = `newjob`). A failed rehire (`postulaciones`, `search_failed`) leaves you `jobless` and paying until the next attempt (max 3 per run, ≥1 year apart); trigger retries draw an independent roll per attempt.
+- **English (`eng` counter):** ~18 months = two study steps (`ingles-cliente` → `ingles-sigue`, a chain trigger fired a year after `eng_study`). `eng>=2` gates referrals, interviews and the 2026 market; `wall` counts doors that closed (feeds *Sin Inglés, Sin Salida*).
+- **Jobless-safe copy:** because joblessness can persist, job-bound scenes carry `needs: ['!jobless']` (the `work` risk group does too). Add it to any new scene that assumes you have a boss.
 - **Family strain:** hidden counter `strain` — rises with stress ≥ `strainStress`, Vida < `strainLife`, and overtime, and falls with a healthy home life or therapy. `separacion` (`strain>=6`) → `divorcio` chain.
-- **Commitment flags** (add a yearly cost via `R.cost`): `rent`, `rent_alone`, `mortgage`, `car_loan`, `debt`, `divorced`, `jobless`.
+- **Commitment flags** (add a yearly cost via `R.cost`): `rent`, `rent_alone`, `mortgage`, `car_loan`, `debt`, `divorced`, `jobless`. **State flags:** `overloaded`, `searching`, `pip`… are cleared by `newjob` (`D.JOB_FLAGS`); `D.JUMP_NAMES` renames Marcos/Lucho/Paola/Fabián everywhere after a job change.
 - **Variants:** `variants:[{ needs:[…], over:{ …fields } }]` swap text/options by flags — this is how callbacks work (mentor → referral, baby → crib, etc.).
 - **Tuning knobs:** `D.RULES` (start values, yearly costs, gain scale, stress coupling, absence). Change → `node tools/sim.mjs`.
 
@@ -61,7 +68,7 @@ SITE_URL=https://your-game.pages.dev node tools/build-ending-pages.mjs   # absol
 Every push to `main` runs [`.github/workflows/pages.yml`](../.github/workflows/pages.yml):
 
 1. `node tools/check.mjs` — the content lint is a quality gate (fails the deploy on errors).
-2. Rewrites `og:image` to an absolute URL and regenerates the 15 `/e/<ending>/` pages with the real site URL (so shared links preview correctly, on any domain or fork).
+2. Rewrites `og:image` to an absolute URL and regenerates the 25 `/e/<ending>/` pages with the real site URL (so shared links preview correctly, on any domain or fork).
 3. Publishes the **`public/`** folder.
 
 Live: **https://binnicordova.github.io/software-engineer-life/**

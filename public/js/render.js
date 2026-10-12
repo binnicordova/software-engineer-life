@@ -205,7 +205,12 @@ async function shareCard(res, o) {
   ctx.fillStyle = '#34D399'; ctx.beginPath(); ctx.arc(80, 74, 9, 0, 7); ctx.fill();
   ctx.fillStyle = '#cfd2e6'; ctx.font = `700 26px ${FONT}`; ls('5px'); ctx.textBaseline = 'middle';
   ctx.fillText('SOFTWARE ENGINEER LIFE', 104, 75); ls('0px');
-  ctx.textAlign = 'right'; ctx.fillStyle = '#8C8FA6'; ctx.fillText('2019 → 2026', W - 70, 75); ctx.textAlign = 'left';
+  // right side: "CAMILA · 2019 → 2026" — drops the years if a long name would collide with the title
+  const who = plain(res.name || o.name || '').toUpperCase(), titleEnd = 104 + ctx.measureText('SOFTWARE ENGINEER LIFE').width;
+  ctx.textAlign = 'right'; ctx.fillStyle = '#8C8FA6'; ls('3px');
+  let right = who ? `${who} · 2019 → 2026` : '2019 → 2026';
+  if (who && titleEnd + 40 + ctx.measureText(right).width > W - 70) right = who;
+  ctx.fillText(right, W - 70, 75); ls('0px'); ctx.textAlign = 'left';
   // title (auto-fit to 2 lines)
   const title = plain(res.title); let fs = 88, lines;
   for (; fs >= 56; fs -= 6) { ctx.font = `900 ${fs}px ${FONT}`; lines = wrap(ctx, title, W - 140); if (lines.length <= 2) break; }

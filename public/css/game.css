@@ -75,7 +75,7 @@ kbd{font:700 11px var(--font);padding:2px 7px;border-radius:6px;background:rgba(
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:0}
 .tile{position:relative;border-radius:22px;overflow:hidden;background:#000;border:2px solid transparent;text-align:left;transition:.2s;display:flex;flex-direction:column;min-height:0}
 .tile .pic{flex:1;min-height:0;position:relative}
-.tile .pic svg{position:absolute;inset:0;width:100%;height:100%}
+.tile .pic>svg{position:absolute;inset:0;width:100%;height:100%}
 .tile .lab{padding:10px 14px 12px;background:#0f1324}
 .tile .lab b{display:block;font-size:19px}.tile .lab span{font-size:12px;color:var(--muted)}
 .tile .ledn{position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:rgba(0,0,0,.5);padding:4px 8px;border-radius:99px;backdrop-filter:blur(6px)}
@@ -87,6 +87,16 @@ kbd{font:700 11px var(--font);padding:2px 7px;border-radius:6px;background:rgba(
 .namebox label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:.04em}
 .namebox input{width:100%;height:50px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.07);color:#fff;font:700 18px var(--font);padding:0 16px}
 .namebox input::placeholder{color:#6f7390}
+.namebox input:focus{outline:none;border-color:var(--led);box-shadow:0 0 0 3px rgba(52,211,153,.18)}
+.namebox small{display:block;margin-top:7px;font-size:12px;color:var(--muted);line-height:1.35}
+/* name tag: the same label a video call puts under your face (on the picker tiles and on the live webcam) */
+.ntag{position:absolute;display:flex;align-items:center;gap:6px;max-width:68%;padding:5px 10px 5px 8px;border-radius:9px;background:rgba(10,12,24,.66);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.16);color:#fff;font-size:12px;line-height:1.1}
+.ntag b{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ntag small{font-size:10.5px;color:#cfd2e6;font-weight:600;white-space:nowrap}
+.ntag .mi{width:13px;height:13px;flex:none}.ntag .mi.off{display:none;color:var(--rec)}
+.tile .ntag{left:10px;bottom:10px;max-width:calc(100% - 20px)}.tile .ntag small{display:none}   /* narrow tiles: just the name */
+#cam .ntag{left:12px;bottom:80px;z-index:5;transition:bottom .25s}
+#cam.tk .ntag{bottom:114px}                                   /* sit above the news ticker */
+#cam.off .ntag .mi.on{display:none}#cam.off .ntag .mi.off{display:block}   /* camera-off scenes: muted mic, still labelled */
 
 /* ---------- play ---------- */
 #s-play{background:var(--ink)}
@@ -165,6 +175,7 @@ kbd{font:700 11px var(--font);padding:2px 7px;border-radius:6px;background:rgba(
 #s-end::-webkit-scrollbar{display:none}
 .kick{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .kick b{color:var(--led)}
+.kick span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:12px}
 #s-end h2{font-size:34px;line-height:1;letter-spacing:-.03em;font-weight:900;margin:8px 0 6px}
 #s-end .roast{font-size:16px;line-height:1.38;color:#E2E2EE}
 .epi{display:inline-block;margin-top:10px;font-size:12px;font-weight:700;color:#cfe9dd;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);padding:5px 10px;border-radius:99px}

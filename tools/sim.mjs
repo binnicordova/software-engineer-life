@@ -35,6 +35,29 @@ const policies = {
     const sc = k => (f(k).c || 0) + (f(k).p || 0) - (f(k).v || 0) * 0.6;
     return sc('A') >= sc('B') ? 'A' : 'B';
   },
+  // builds market value on purpose: studies English, learns, sends CVs early, jumps — while protecting energy
+  proactive: (g, card) => {
+    const s = g.state;
+    const score = k => {
+      const op = card.kind === 'fate' ? card : card[k], f = g.expectedFx(card, k);
+      const sets = [...(op.set || []), ...((op.win || {}).set || [])];
+      const floor = Math.min(...K.map(x => Math.max(0, Math.min(100, s[x] + (f[x] || 0)))));   // never let a meter collapse (like `balanced`)
+      return floor - (f.st || 0) * 0.25 + (f.mk || 0) * 0.6 + (f.eng || 0) * 25 + (f.job || 0) * 8 + (sets.includes('searching') ? 6 : 0);
+    };
+    return score('A') >= score('B') ? 'A' : 'B';
+  },
+  // "if it ain't broke": keeps every meter healthy but never invests in the market — no CVs, no English, no upskilling, "mi empresa me valora"
+  comfy:    (g, card) => {
+    const s = g.state;
+    const score = k => {
+      const op = card.kind === 'fate' ? card : card[k], f = g.expectedFx(card, k);
+      const sets = [...(op.set || []), ...((op.win || {}).set || [])];
+      const floor = Math.min(...K.map(x => Math.max(0, Math.min(100, s[x] + (f[x] || 0)))));
+      const invests = sets.includes('searching') || sets.includes('eng_study') || sets.includes('upskilling') || (f.mk || 0) > 0 || (f.eng || 0) > 0;
+      return floor - (f.st || 0) * 0.25 - (invests ? 12 : 0) + ((f.mk || 0) < 0 ? 3 : 0);   // takes the comfortable option when it can
+    };
+    return score('A') >= score('B') ? 'A' : 'B';
+  },
   // cares about people and body first, money second
   caring:   (g, card) => {
     const s = g.state, score = k => { const f = g.expectedFx(card, k); return (f.v || 0) * 1.2 + (f.e || 0) * 1.1 + (f.p || 0) * 0.8 + (f.c || 0) * 0.4 - (f.st || 0) * 0.4; };
@@ -60,7 +83,9 @@ function play(policy, seed) {
 const pct = (n, d) => (100 * n / d).toFixed(1).padStart(5) + '%';
 const allEndings = new Set(D.ENDINGS.map(e => e.id));
 const reached = new Set();
+const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 for (const name of Object.keys(policies)) {
+  if (ONLY && !ONLY.includes(name)) continue;
   const res = []; for (let i = 1; i <= RUNS; i++) res.push(play(name, i * 2654435761 >>> 0));
   const alive = res.filter(r => !r.fin.over);
   const dist = {}; res.forEach(r => { dist[r.fin.id] = (dist[r.fin.id] || 0) + 1; reached.add(r.fin.id); });
@@ -69,6 +94,8 @@ for (const name of Object.keys(policies)) {
   const has = f => pct(res.filter(r => r.s.flags[f]).length, RUNS).trim();
   const anyDx = pct(res.filter(r => (r.s.cnt.dx || 0) > 0).length, RUNS).trim();
   console.log(`   family · partner ${has('partner')} baby ${has('baby')} avg strain ${avg(r => r.s.cnt.strain || 0)} max>=4 ${pct(res.filter(r => (r.s.cnt.strain||0) >= 4).length, RUNS).trim()} missed ${avg(r => r.s.cnt.missed || 0)}`);
+  const lvl = (min, max) => pct(res.filter(r => r.s.mk >= min && r.s.mk < max).length, RUNS).trim();
+  console.log(`   market · mk avg ${avg(r => r.s.mk)} (<40 ${lvl(0, 40)} · 40-60 ${lvl(40, 60)} · >=60 ${lvl(60, 101)}) | english>=2 ${pct(res.filter(r => r.s.cnt.eng >= 2).length, RUNS).trim()} | jumped ${pct(res.filter(r => r.s.cnt.jumps >= 1).length, RUNS).trim()} | searching ${has('searching')} overloaded ${has('overloaded')} | wall>=1 ${pct(res.filter(r => r.s.cnt.wall >= 1).length, RUNS).trim()} | jobless at end ${has('jobless')} | ai_retitled ${has('ai_retitled')} ai_laid_off ${has('ai_laid_off')}`);
   console.log(`   threads · dx ${anyDx} (avg ${avg(r => r.s.cnt.dx || 0)}) gallbladder ${has('gallbladder')} | separated ${has('separated')} divorced ${has('divorced')} therapy ${has('therapy')} | pip ${has('pip')} conflict ${has('conflict')} jobless_ever ${has('jobless_ever')} | mortgage ${has('mortgage')} car ${has('car_loan')} rent_alone ${has('rent_alone')} debt ${has('debt')}`);
   if (!QUIET) Object.entries(dist).sort((a, b) => b[1] - a[1]).forEach(([id, n]) => console.log('   ' + id.padEnd(16), pct(n, RUNS)));
   else console.log('   ' + Object.entries(dist).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, n]) => id + ' ' + pct(n, RUNS).trim()).join(' · '));

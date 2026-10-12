@@ -3,7 +3,8 @@
  *
  * Text tokens:  {n} name · {o} o/a · {#cnt} counter value · {?cond|si|no} inline condition
  * Conditions:   flag · !flag · stat/counter>=N (e,p,c,v,stress,act, ot, raises, body, ...)
- * Outcome keys: fx{e,p,c,v} st(stress) set[] unset[] count{} raise res expr addProps[]
+ *               mk (market vigencia, hidden) · tenure (years in the current job) · <flag>_ago (years since the flag was set; −1 = unset)
+ * Outcome keys: fx{e,p,c,v} st(stress) mk set[] unset[] count{} raise newjob res expr addProps[]
  */
 (function (root) {
 'use strict';
@@ -15,20 +16,33 @@ D.RULES = {
   cost:  { base: 2, rent: 2, baby: 2, debt: 2, raise: 2,     // Plata lost every new year…
            rentAlone: 1, mortgage: 3, car: 1, divorce: 3, jobless: 2 },   // …plus the commitments you sign
   chronic: { e: 2, p: 1, care: 1 },                          // per unmanaged ailment: Energía/Plata lost every year; managed: only the treatment
-  regenBase: 10,                                             // Energía regained every year (minus stress/10)
+  regenBase: 11,                                             // Energía regained every year (minus stress/10)
   stressDecay: 4,                                            // stress lost every year
   stressFromEnergy: 0.25,                                    // burning Energía also raises hidden stress
   gain: 0.88,                                                // positive effects are scaled: the system takes more than it gives
   absence: 3,                                                // Vida lost per "un ratito más" of the year that just ended
   lifeDrain: 2,                                              // Vida erodes by default: people need maintenance
-  strainStress: 60, strainLife: 40, strainEase: 60           // family strain +1/yr when stress ≥ / Vida < these; −1/yr when Vida ≥ strainEase
+  strainStress: 60, strainLife: 40, strainEase: 60,          // family strain +1/yr when stress ≥ / Vida < these; −1/yr when Vida ≥ strainEase
+  // Vigencia (hidden `mk`): what the MARKET thinks of your skills + pay. Carrera is your standing inside the company; this is outside it.
+  market: { start: 58, decay: 3,                             // the market moves on without you, every year
+            drag3: 3, drag5: 3,                              // …and the same job for ≥3 / ≥5 years makes it worse (comfort = obsolescence)
+            ai: 4 },                                         // from 2025 the stack changes even faster
+  overloadE: 2,                                              // Energía lost every year while carrying extra work with no raise (`overloaded`)
+  searchE: 2                                                 // Energía lost every year while sending CVs at night (`searching`)
 };
+/* levels the share card reveals: what your company sees (Carrera) vs. what the market sees (vigencia). First match wins. */
+D.ROLES  = [{ min: 75, label: 'Tech Lead' }, { min: 55, label: 'Senior' }, { min: 35, label: 'Mid' }, { min: 0, label: 'Junior' }];
+D.LEVELS = [{ min: 72, label: 'Senior vigente' }, { min: 56, label: 'Semi-senior' }, { min: 40, label: 'Mid' }, { min: 26, label: 'Mid desactualizad{o}' }, { min: 0, label: 'Junior (stack 2019)' }];
+/* a new job wipes these (the old boss, the old PIP, the old overload) */
+D.JOB_FLAGS = ['overloaded', 'searching', 'pip', 'bad_feedback', 'conflict', 'unpaid_resp', 'unpaid_promo', 'comfort'];
+/* after you change companies the cast changes too (same story, new boss) — applied to every text and NPC label */
+D.JUMP_NAMES = { Marcos: 'Andrés', Lucho: 'Camilo', Paola: 'Nuria', 'Fabián': 'Iván' };
 
 /* ---------- acts: one per year, 2019 → 2026 ---------- */
 D.ACTS = [
-  { year: 2019, title: 'Oficial', pool: 2, theme: 'parents', mid: 'frame',
+  { year: 2019, title: 'Oficial', pool: 1, theme: 'parents', mid: 'frame',
     line: 'Una habitación en Lima. {n} lleva 3 meses trabajando “de prueba”, sin sueldo. Hoy firma.' },
-  { year: 2020, title: 'Cuarentena', pool: 2, theme: 'quarantine', weather: 'gray', mid: 'calendar',
+  { year: 2020, title: 'Cuarentena', pool: 1, theme: 'quarantine', weather: 'gray', mid: 'calendar',
     line: 'El mundo se mudó a las pantallas. La webcam se volvió la única ventana.' },
   { year: 2021, title: 'Remoto para siempre', pool: 1, theme: { home: 'parents', rent: 'apartment' }, mid: 'frame',
     line: 'Nadie sabe dónde termina la oficina. Ni dónde empieza la casa.' },
@@ -39,7 +53,7 @@ D.ACTS = [
   { year: 2024, title: 'Tech Lead (sin aumento)', pool: 1, theme: 'rose', mid: 'frame',
     line: 'Más responsabilidad. El mismo sueldo. Es un reconocimiento.' },
   { year: 2025, title: 'Llega la IA', pool: 1, theme: 'violet', mid: 'chatai',
-    line: 'Alguien instaló un agente que escribe código. Ahora entregarán el doble.' },
+    line: 'Un agente escribe código, los cargos cambian de nombre y todo pasa en plena temporada alta.' },
   { year: 2026, title: 'Cámara encendida', pool: 0, theme: 'sunrise', mid: 'helmet',
     line: 'Siete años. La webcam te vio crecer, cansarte y seguir. Esta vez, decides si se queda encendida.' }
 ];
@@ -101,9 +115,17 @@ D.CARDS = [
        win:  { fx: { p: 14, c: 4 }, set: ['negotiated'], raise: 1, res: 'Funcionó: S/ 2,100. Paola: “Qué raro, nadie pide”.', expr: 'happy' },
        lose: { fx: { c: -6, p: 2 }, res: '“Lo conversamos más adelante.” Nunca se conversó.', expr: 'tired' } } },
 
+/* English: ~18 months = two study steps (this card + one follow-up a year later). Skipping it is free today and expensive from 2023 on. */
+{ id: 'ingles-cliente', kind: 'anchor', act: 0, m: 'NOV', time: '10:35', expr: 'stressed', from: 'cliente',
+  text: '“Hi, {n}! Can you join a quick call?” El cliente de Texas escribe en inglés. Abres la cámara y entiendes la mitad.',
+  A: { t: 'Inscribirte a inglés: 18 meses, de noche', fx: { e: -4, p: -4, c: 3 }, set: ['eng_study'], count: { eng: 1, learn: 1 },
+       res: 'Martes y jueves, 8 pm. En 18 meses podrás hablar con ese cliente. Tu mamá preguntó cuándo duermes.', expr: 'tired' },
+  B: { t: 'Que atienda otro: “el código es universal”', fx: { e: 4, p: 2, c: -2 }, set: ['no_english'],
+       res: 'Rodrigo cubrió la llamada. Te ahorraste 18 meses de clases. La cuenta del idioma no vence hoy: vence después.', expr: 'neutral' } },
+
 { id: 'rodrigo', kind: 'anchor', act: 0, m: 'DIC', time: '19:40', expr: 'neutral', from: 'rodrigo',
-  text: '“Quédate 30 minutos y te explico cómo depurar esto bien. Eso no te lo enseñan en la universidad.”',
-  A: { t: 'Quedarte a aprender', fx: { c: 12, e: -6 }, set: ['mentor'], count: { learn: 1 },
+  text: '“{n}, quédate 30 minutos y te explico cómo depurar esto bien. Eso no te lo enseñan en la universidad.”',
+  A: { t: 'Quedarte a aprender', fx: { c: 12, e: -6 }, mk: 4, set: ['mentor'], count: { learn: 1 },
        res: 'Aprendiste más en 30 minutos que en 5 años de carrera. Rodrigo anotó tu número.', expr: 'happy' },
   B: { t: 'Cerrar el ticket y salir a tu hora', fx: { e: 6, v: 6, c: -4 },
        res: 'Llegaste a cenar con tus papás. El bug siguió ahí. Rodrigo asintió, sin rencor.', expr: 'neutral' } },
@@ -116,21 +138,21 @@ D.CARDS = [
        res: 'Tu laptop vieja descansó. Tu mamá, en silencio, hizo cuentas.', expr: 'neutral' } },
 
 { id: 'favor', kind: 'pool', acts: [0], m: 'NOV', time: '18:50', expr: 'tired', from: 'marcos',
-  text: '“Es un favorcito: 2 horas más. No se pagan, pero se valoran mucho.”',
+  text: '“{n}, es un favorcito: 2 horas más. No se pagan, pero se valoran mucho.”',
   A: { t: 'Quedarte', fx: { c: 8, e: -10 }, st: 10, count: { ot: 1, yes: 1 },
        res: '“Se valora mucho” fue todo lo que recibiste. A las 9 pm te sonó el estómago.', expr: 'tired' },
   B: { t: 'Salir a tu hora', fx: { e: 5, c: -8, v: 3 }, count: { bound: 1 },
        res: 'Marcos escribió “ok” sin emoji. Tú viste tu primer atardecer en meses.', expr: 'neutral' } },
 
 { id: 'meetup', kind: 'pool', acts: [0], m: 'DIC', time: '08:20', expr: 'neutral', from: 'fer',
-  text: '“Hay un meetup de devs el sábado. Gratis, con pizza y gente que sí sabe.”',
-  A: { t: 'Ir', fx: { c: 8, v: 4, e: -5 }, count: { learn: 1 },
+  text: '“{n}, hay un meetup de devs el sábado. Gratis, con pizza y gente que sí sabe.”',
+  A: { t: 'Ir', fx: { c: 8, v: 4, e: -5 }, mk: 3, count: { learn: 1 },
        res: 'Conociste a alguien que cobra en dólares. No lo olvidarás.', expr: 'happy' },
   B: { t: 'Dormir hasta las 11', fx: { e: 10, c: -3 },
        res: 'Dormiste. Fue glorioso. La pizza, en cambio, nunca la probaste.', expr: 'relief' } },
 
 { id: 'viernes-prod', kind: 'pool', acts: [0], m: 'DIC', time: '17:55', expr: 'stressed', from: 'marcos',
-  text: 'Viernes, 5:55 pm. Producción se cae. Marcos: “¿Tú sabes de eso? Nadie más está conectado.”',
+  text: 'Viernes, 5:55 pm. Producción se cae. Marcos: “¿Tú sabes de eso, {n}? Nadie más está conectado.”',
   A: { t: 'Arreglarlo tú mismo', fx: { c: 7, e: -8 }, st: 8, count: { ot: 1 },
        res: 'Lo arreglaste a las 9:10 pm. El lunes nadie lo mencionó.', expr: 'tired' },
   B: { t: 'Avisar y dejarlo para el lunes', fx: { e: 4, c: -6 }, count: { bound: 1 },
@@ -140,22 +162,37 @@ D.CARDS = [
 { id: 'emergencia', kind: 'anchor', first: true, fix: true, act: 1, m: 'MAR', time: '20:05', expr: 'shock', from: 'marcos',
   ambient: 'mom', ambientText: '¡Lávate las manos!',
   ticker: 'ÚLTIMO MOMENTO · ESTADO DE EMERGENCIA NACIONAL · CUARENTENA DESDE ESTA NOCHE · QUÉDATE EN CASA ·',
-  text: '“Hay cuarentena desde esta noche. Mañana todos remoto: llévate lo que necesites de la oficina.”',
+  text: '“{n}, hay cuarentena desde esta noche. Mañana todos remoto: llévate lo que necesites de la oficina.”',
   A: { t: 'Cargar el monitor de la oficina', fx: { c: 5, e: 6, p: -2 }, res: 'Ahora tienes dos pantallas. Y ninguna salida.', expr: 'neutral' },
   B: { t: 'Trabajar con tu laptop vieja', fx: { p: 5, e: -8 }, res: 'Tu laptop suena como un avión. Ahorraste S/ 600.', expr: 'stressed' },
   variants: [ { needs: ['new_laptop'], over: {
     B: { t: 'Trabajar con tu laptop nueva', fx: { p: 5, e: 2 }, res: 'Tu laptop nueva aguanta. Aquella decisión de 2019 rindió.', expr: 'neutral' } } } ] },
 
 { id: 'nueve-a-nueve', kind: 'anchor', act: 1, m: 'SEP', time: '22:48', expr: 'tired', from: 'marcos',
-  text: '“Como estás en casa, ¿te conectas un ratito más? Es urgente. {?ot>=1|Como la otra vez. |}Las horas extra no se pagan, pero se valoran.”',
+  text: '“{n}, como estás en casa, ¿te conectas un ratito más? Es urgente. {?ot>=1|Como la otra vez. |}Las horas extra no se pagan, pero se valoran.”',
   A: { t: 'Quedarte. “Un ratito”', fx: { c: 9, e: -14, v: -4 }, st: 15, count: { ot: 1, yes: 1 }, set: ['always_on'],
        res: 'Terminaste a las 11:47 pm. Nadie lo agradeció. El “ratito” duró 3 horas.', expr: 'tired' },
   B: { t: 'Desconectarte a las 6', fx: { v: 8, c: -8, e: 4 }, count: { bound: 1 }, set: ['boundaries'],
        res: 'Marcos dejó un 👍 frío. Pero cenaste caliente.', expr: 'neutral' } },
 
+/* second chance (only if you skipped English in 2019) and the follow-up that fires a year after you start studying */
+{ id: 'ingles-2020', kind: 'anchor', act: 1, needs: ['eng<1', '!eng_study'], m: 'AGO', time: '20:20', expr: 'neutral', from: 'fer',
+  text: '“{n}, con la cuarentena, las clases de inglés online bajaron a S/ 120. Yo ya voy por el nivel 2. ¿Te apuntas? Aún estás a tiempo.”',
+  A: { t: 'Empezar hoy: 18 meses de clases', fx: { e: -5, p: -4 }, set: ['eng_study'], count: { eng: 1, learn: 1 },
+       res: 'Empezaste tarde, pero empezaste. En 18 meses, el inglés dejará de ser “después”.', expr: 'tired' },
+  B: { t: 'Dejarlo para otro año', fx: { e: 4, p: 2 }, set: ['eng_postponed'],
+       res: 'Otro año, el mismo “después”. El inglés no se enojó: solo siguió esperando.', expr: 'neutral' } },
+
+{ id: 'ingles-sigue', kind: 'trigger', chain: true, max: 3, gap: 1, needs: ['eng_study', 'eng<2', 'eng_study_ago>=1'], m: 'JUN', time: '20:30', expr: 'tired', from: 'calendario',
+  text: 'Tu calendario: “Clase de inglés · 8 pm”. Llegas del trabajo agotad{o}, con un entregable pendiente y la cámara aún caliente.',
+  A: { t: 'Entrar a clase: “un nivel más”', fx: { e: -4, p: -3 }, count: { eng: 1, learn: 1 },
+       res: 'Hoy hablaste 10 minutos seguidos con un desconocido de Chile. Sudor, errores y una palabra nueva: “deadline”.', expr: 'tired' },
+  B: { t: 'Pausar las clases “por trabajo”', fx: { e: 4, c: 2 }, unset: ['eng_study'], set: ['eng_paused'],
+       res: 'El trabajo siempre tiene razón. El inglés, en cambio, se enfría rápido.', expr: 'neutral' } },
+
 { id: 'almuerzo', kind: 'pool', acts: [1, 2], m: 'JUN', time: '13:05', expr: 'shock', from: 'equipo',
   ambient: 'mom', ambientText: '¡ALMUERZO!',
-  text: 'Tu mamá abre la puerta en pleno daily y grita: “¡ALMUERZO!”. Tu cámara está encendida.',
+  text: 'Tu mamá abre la puerta en pleno daily y grita: “¡{n}, ALMUERZO!”. Tu cámara está encendida.',
   A: { t: 'Silenciar y sonreír', fx: { c: 3, v: -2 }, res: 'Fingiste que no la oías. Ella, en cambio, sí te oyó pensar.', expr: 'stressed' },
   B: { t: 'Presentar a tu mamá al equipo', fx: { v: 8, c: -3 }, res: 'Mamá saludó a 14 personas. Marcos puso “¡qué lindo!”. Lucho pidió la receta.', expr: 'happy' } },
 
@@ -169,13 +206,13 @@ D.CARDS = [
   A: { t: 'Mutear y seguir', fx: { c: 2 }, res: 'Muteaste a tiempo. El camotero, no.', expr: 'neutral' },
   B: { t: 'Reír: “Es el camotero, es Lima”', fx: { v: 6, c: -2 }, res: 'Todos rieron. Alguien preguntó a qué hora pasa.', expr: 'happy' } },
 
-{ id: 'reuniones', kind: 'pool', acts: [1, 2], m: 'OCT', time: '09:30', expr: 'tired', from: 'calendario',
+{ id: 'reuniones', kind: 'pool', needs: ['!jobless'], acts: [1, 2], m: 'OCT', time: '09:30', expr: 'tired', from: 'calendario',
   text: 'Hoy tienes 7 reuniones. 5 pudieron ser un correo. 1 pudo ser un mensaje.',
   A: { t: 'Cámara apagada, escuchar a medias', fx: { c: -4, e: 6 }, res: 'Escuchaste a medias. Te salvó que nadie preguntó nada.', expr: 'neutral' },
   B: { t: 'Cámara encendida, modo actor', fx: { c: 5, e: -8 }, count: { cam: 1 }, res: 'Asentiste 40 veces. Entendiste 2.', expr: 'tired' } },
 
-{ id: 'camara-on', kind: 'pool', acts: [1, 2], m: 'MAY', time: '10:10', expr: 'neutral', from: 'marcos',
-  text: '“¿Puedes prender la cámara? Se siente más cercano.” Esta noche dormiste 4 horas.',
+{ id: 'camara-on', kind: 'pool', needs: ['!jobless'], acts: [1, 2], m: 'MAY', time: '10:10', expr: 'neutral', from: 'marcos',
+  text: '“{n}, ¿puedes prender la cámara? Se siente más cercano.” Esta noche dormiste 4 horas.',
   A: { t: 'Prender la cámara', fx: { c: 4, e: -5 }, st: 4, count: { cam: 1 }, res: 'Te peinaste solo de la cintura para arriba. Funcionó.', expr: 'tired' },
   B: { t: 'Decir que tu cámara falla', fx: { e: 4, c: -3, v: -2 }, res: 'Tu cámara “falla”. Marcos te cree. Tú, un poquito menos.', expr: 'neutral' } },
 
@@ -188,7 +225,7 @@ D.CARDS = [
 
 /* ============ 2021 · Remoto para siempre ============ */
 { id: 'mentor-renuncia', kind: 'anchor', act: 2, m: 'JUN', time: '10:30', expr: 'stressed', from: 'marcos',
-  text: 'Rodrigo se va a una empresa que paga en dólares. Marcos: “Te quedas con su módulo. Es una oportunidad.”',
+  text: 'Rodrigo se va a una empresa que paga en dólares. Marcos: “{n}, te quedas con su módulo. Es una oportunidad.”',
   A: { t: 'Aceptar su módulo, sin aumento', fx: { c: 12, e: -10 }, st: 12, set: ['unpaid_resp'], count: { extra: 1, yes: 1 },
        res: 'Ahora respondes por 3 sistemas que no escribiste. “Es crecimiento”, dijeron.', expr: 'stressed' },
   B: { t: 'Pedir aumento antes de aceptar', roll: { base: 0.45, mods: [['negotiated', 0.05], ['c>=60', 0.1]] },
@@ -196,10 +233,43 @@ D.CARDS = [
        lose: { fx: { c: -10, e: -4 }, res: 'Lo verán “en la evaluación”. La evaluación es en 2024.', expr: 'tired' } },
   variants: [ { needs: ['mentor'], over: { from: 'rodrigo',
     enter: { set: ['rodrigo_contact'] },
-    text: '“Me voy a una empresa que paga en dólares. Te dejo mi módulo… y mi número, por si algún día lo necesitas.”' } } ] },
+    text: '“{n}, me voy a una empresa en dólares; me contrataron por mi inglés. Te dejo mi módulo y mi número por si lo necesitas.”' } } ] },
+
+/* ~1.5 years in: the company adds scope, never salary. Absorb it and the clock starts (bad review → PIP → out); start sending CVs and you can leave first. */
+{ id: 'sobrecarga', kind: 'trigger', max: 1, needs: ['act>=2', 'tenure>=2', '!jobless', '!searching', '!overloaded', 'bound<3', 'raises<1'], m: 'SEP', time: '18:10', expr: 'tired', from: 'marcos',
+  text: '“{n}, eres de confianza: te sumo dos proyectos más.” Llevas año y medio con el mismo sueldo y cada vez más alcance.',
+  A: { t: 'Aceptar: “es una oportunidad”', fx: { c: 8, e: -6 }, st: 6, set: ['overloaded'], count: { extra: 1, yes: 1, ot: 1 },
+       res: 'Ahora cargas cinco sistemas y cero aumentos. “Es crecimiento”, repite Marcos. Tu calendario ya no tiene huecos.', expr: 'tired' },
+  B: { t: 'Mandar CVs en silencio, de noche', fx: { e: -4, c: -2 }, mk: 4, set: ['searching'],
+       res: 'Tres noches de CV y el “open to work” oculto. En la oficina, nadie lo sabe. Todavía.', expr: 'tired' } },
+
+{ id: 'feedback-sobrecarga', kind: 'trigger', max: 1, needs: ['overloaded', 'overloaded_ago>=1', '!jobless', '!searching'], m: 'DIC', time: '16:10', expr: 'stressed', from: 'paola',
+  text: 'Evaluación: “Bajó la calidad de tus entregas.” Te dieron cinco proyectos y te evalúan como si tuvieras uno.',
+  A: { t: 'Pedir un plan de mejora y seguir', fx: { c: 3, e: -4 }, st: 5, set: ['pip'],
+       res: 'Plan de mejora a 90 días: una hoja de Excel, reuniones semanales y los mismos cinco proyectos.', expr: 'stressed' },
+  B: { t: 'Empezar a mandar CVs hoy mismo', fx: { c: -4, e: -3 }, mk: 3, set: ['searching', 'bad_feedback'],
+       res: 'Esa noche actualizaste el CV. Quizá tarde, pero antes de que lo decidan ellos.', expr: 'tired' } },
+
+{ id: 'despido-sobrecarga', kind: 'trigger', max: 1, needs: ['overloaded', 'pip', 'overloaded_ago>=2', '!searching', '!jobless'], m: 'OCT', time: '10:30', expr: 'shock', from: 'paola',
+  text: 'RR. HH.: “Tras el plan de mejora, la dirección redujo el equipo.” Hoy es tu último día. Tus cinco proyectos los repartirán.',
+  A: { t: 'Negociar la salida y la liquidación', fx: { p: 8, c: -8, v: -2 }, set: ['jobless', 'jobless_ever'],
+       res: 'Conseguiste dos semanas más de liquidación. Marcos no te miró a la cámara.', expr: 'tired' },
+  B: { t: 'Reclamar: “me dieron el triple de trabajo”', fx: { p: -2, c: -8, v: -4 }, set: ['jobless', 'jobless_ever'],
+       res: 'Tu razón no cambió el formulario. Lucho te mandó un audio de 3 minutos: “yo sigo, pero con el CV listo”.', expr: 'stressed' } },
+
+/* the other side of "sending CVs": a year later the answers arrive. Odds = how current you are (mk), English, energy, the year. */
+{ id: 'entrevistas', kind: 'trigger', max: 3, gap: 1, needs: ['searching', 'searching_ago>=1', '!jobless'], m: 'MAR', time: '13:05', expr: 'stressed', from: 'nueva',
+  text: 'Tus CVs tuvieron respuesta: dos procesos abiertos. Las entrevistas son en tu hora de almuerzo y tu cámara “falla” a propósito.',
+  A: { t: 'Ir a las entrevistas', roll: { base: 0.4, mods: [['mk>=55', 0.2], ['mk>=70', 0.1], ['mk<35', -0.2], ['eng>=2', 0.2], ['eng<1', -0.1], ['act>=6', -0.1], ['e<30', -0.1], ['pip', -0.1], ['c>=60', 0.05]] },
+       win:  { fx: { p: 14, c: 3, e: 2, v: -2 }, st: -12, mk: 10, raise: 1, set: ['jumped'], unset: ['searching'], count: { jumps: 1 }, newjob: true,
+               res: '“Bienvenid{o}.” +40 % de sueldo y un stack de este siglo. {?eng>=2|Hasta la ronda en inglés salió bien.|Tu jefe nuevo pregunta antes de sumarte proyectos.}', expr: 'happy' },
+       lose: { fx: { c: -3, e: -6 }, mk: 2, count: { wall: 1 },
+               res: 'Cuatro rondas, cero ofertas. {?eng<2|En la última te pidieron inglés y se te trabó la lengua.|Te dijeron: “fuerte en lo tuyo, pero tu stack tiene años”.}', expr: 'tired' } },
+  B: { t: 'Cancelar: “mejor malo conocido”', fx: { e: 3, c: 1 }, mk: -3, unset: ['searching'],
+       res: 'Cancelaste. El malo conocido sigue siendo malo… y conocido. Tu jefe agradeció la “lealtad”.', expr: 'neutral' } },
 
 { id: 'dar-el-paso', kind: 'anchor', act: 2, m: 'NOV', time: '20:15', expr: 'happy', from: 'pareja',
-  text: '“¿Y si damos el paso? Un departamento… y un hijo.” {?family_anchor|Sabes que en casa también te necesitan.|}',
+  text: '“{n}, ¿y si damos el paso? Un departamento… y un hijo.” {?family_anchor|Sabes que en casa también te necesitan.|}',
   A: { t: 'Sí, vamos por ello', fx: { v: 16, p: -14, e: -8 }, set: ['baby', 'rent', 'partner'], unset: ['rent_alone'],
        res: 'Alquiler, pañales y una caja de ilusión. Las cuentas hicieron yoga.', expr: 'happy' },
   B: { t: 'Todavía no, primero estabilidad', fx: { c: 6, v: -6, p: 4 }, set: ['postponed', 'partner'],
@@ -209,7 +279,7 @@ D.CARDS = [
          res: 'Alquiler, pañales y el aporte de casa. Tus finanzas hicieron malabares.', expr: 'happy' } } } ] },
 
 { id: 'cumple-amigo', kind: 'pool', acts: [2], m: 'AGO', time: '19:00', expr: 'neutral', from: 'fer',
-  text: '“Hoy celebro mi cumple. ¡Vienes! (Sé que mañana hay release.)”',
+  text: '“Hoy celebro mi cumple. ¡Vienes, {n}! (Sé que mañana hay release.)”',
   A: { t: 'Ir', fx: { v: 10, e: -6, p: -4 }, res: 'Bailaste mal y reíste bien. Valió cada sol del taxi.', expr: 'happy' },
   B: { t: 'Quedarte a terminar', fx: { c: 6, v: -10 }, res: 'El release salió. Fer te mandó un audio: “te extrañamos”.', expr: 'tired' } },
 
@@ -225,18 +295,18 @@ D.CARDS = [
   A: { t: 'Comprar una silla ergonómica', fx: { p: -8, e: 8 }, st: -5, res: 'Costó S/ 380. Tu espalda te mandó un “gracias”.', expr: 'relief' },
   B: { t: 'Seguir en la silla de comedor', fx: { e: -8 }, st: 8, res: 'Tu espalda anotó la deuda. Cobra con intereses.', expr: 'tired' } },
 
-{ id: 'cliente-sabado', kind: 'pool', acts: [2, 3], m: 'SEP', time: '10:05', expr: 'stressed', from: 'cliente',
-  text: '“Disculpe, ¿podría hacer el cambio hoy? Es sábado, pero para nosotros es urgente.”',
+{ id: 'cliente-sabado', kind: 'pool', needs: ['!jobless'], acts: [2, 3], m: 'SEP', time: '10:05', expr: 'stressed', from: 'cliente',
+  text: '“Disculpe, {n}, ¿podría hacer el cambio hoy? Es sábado, pero para nosotros es urgente.”',
   A: { t: 'Hacerlo hoy', fx: { c: 6, e: -8, v: -4 }, count: { ot: 1 }, res: 'Lo entregaste a las 4 pm. El cliente respondió: “gracias, ahora otro cambio”.', expr: 'tired' },
   B: { t: 'Responder el lunes a primera hora', fx: { e: 5, c: -5, v: 3 }, count: { bound: 1 }, res: 'El lunes fuiste amable… y firme. Nadie se murió.', expr: 'relief' } },
 
-{ id: 'cafe-lucho', kind: 'pool', acts: [2, 3], m: 'OCT', time: '15:30', expr: 'neutral', from: 'lucho',
+{ id: 'cafe-lucho', kind: 'pool', needs: ['!jobless'], acts: [2, 3], m: 'OCT', time: '15:30', expr: 'neutral', from: 'lucho',
   text: '“Café virtual de 15 minutos. Hablaremos de renunciar. Bueno, de ‘crecer’.”',
   A: { t: 'Ir al café virtual', fx: { v: 6, e: 3, c: 2 }, res: 'Descubriste que 4 de 6 piensan igual. En el daily, nadie dijo nada.', expr: 'happy' },
   B: { t: 'No tienes tiempo', fx: { c: 3, v: -4 }, res: 'Terminaste un ticket. Perdiste una conversación necesaria.', expr: 'neutral' } },
 
 /* ============ 2022 · Más con menos ============ */
-{ id: 'daily-ruido', kind: 'anchor', act: 3, m: 'MAR', time: '09:58', expr: 'stressed', from: 'equipo', ambient: 'drill',
+{ id: 'daily-ruido', kind: 'anchor', needs: ['!jobless'], act: 3, m: 'MAR', time: '09:58', expr: 'stressed', from: 'equipo', ambient: 'drill',
   text: 'Un taladro vecino arranca justo cuando te toca hablar. La obra durará 3 semanas.',
   A: { t: 'Audífonos y gritar más fuerte', fx: { c: 5, e: -8 }, res: 'Se te escuchó perfecto. A ti, a 14 personas y a todo el edificio.', expr: 'stressed' },
   B: { t: 'Pedir reprogramar el daily', fx: { e: 4, c: -5 }, res: '“Claro, sin problema.” (Sí había problema.)', expr: 'neutral' },
@@ -245,35 +315,50 @@ D.CARDS = [
     A: { t: 'Silenciar el micro y seguir', fx: { c: 6, v: -8, e: -4 }, res: 'Hablaste 90 segundos. Tu bebé lloró 90 segundos. Todo salió “perfecto”.', expr: 'stressed' },
     B: { t: 'Cargarlo en cámara y explicar', fx: { v: 10, c: -5 }, res: 'Todos sonrieron. Marcos escribió “seguimos”. Lucho, “qué ternura”.', expr: 'happy' } } } ] },
 
-{ id: 'sin-ajuste', kind: 'anchor', act: 3, m: 'JUN', time: '11:00', expr: 'tired', from: 'paola',
-  text: '“Este año no habrá ajuste salarial por el contexto económico.” {?raises>=1|Tu aumento anterior “ya cubre” la inflación.|La inflación, en cambio, sí recibió aumento.}',
-  A: { t: 'Aceptar: cambiar da miedo', fx: { p: -6, e: -4 }, set: ['stayed'], res: 'Te quedaste. El precio del pan, en cambio, subió sin avisar.', expr: 'tired' },
-  B: { t: 'Salir a entrevistar', fx: { c: 4, e: -10 }, set: ['interviewing'], res: 'Dos entrevistas en el almuerzo. Tu estómago negoció contigo.', expr: 'stressed' } },
+/* ~3 years in the same job: the day you discover what the market pays, and that your tools are 3 years old */
+{ id: 'sin-ajuste', kind: 'anchor', act: 3, needs: ['tenure>=3', '!jobless'], m: 'JUN', time: '11:00', expr: 'tired', from: 'paola',
+  text: '“Este año no habrá ajuste salarial.” Esa noche ves una encuesta: tu perfil cobra casi el doble afuera. Y tus herramientas ya tienen 3 años.',
+  A: { t: 'Quedarte: “cambiar da miedo”', fx: { p: -6, e: -4 }, mk: -3, set: ['stayed', 'comfort'],
+       res: 'Te quedaste. El pan subió sin avisar; el mercado, tampoco avisó. Tú, cómod{o}: lo único que sube solo.', expr: 'tired' },
+  B: { t: 'Mandar CVs y estudiar lo que hoy piden', fx: { c: 2, e: -10 }, mk: 8, set: ['searching', 'upskilling'], count: { learn: 1 },
+       res: 'Noches de CV y sábados de cursos. Descubriste que tu stack ya no es “el de moda”. Dolió… y sirvió.', expr: 'stressed' } },
 
 { id: 'rumores', kind: 'anchor', act: 3, m: 'AGO', time: '21:30', expr: 'tired', from: 'lucho',
-  text: '“Marcos canceló todas las 1:1 y RRHH no contesta. Algo huele raro.”',
-  A: { t: 'Actualizar el CV en secreto', fx: { e: -5, c: 3 }, set: ['prepared'], res: 'Dos noches de CV. Tu pareja preguntó si estabas bien.', expr: 'tired' },
-  B: { t: 'Confiar. “A mí no me pasa”', fx: { e: 4, v: 2 }, set: ['naive'], res: 'Dormiste tranquilo. Por última vez en un tiempo.', expr: 'neutral' },
+  text: '“{n}, Marcos canceló todas las 1:1 y RRHH no contesta. Algo huele raro.”',
+  A: { t: 'Actualizar el CV en secreto', fx: { e: -5, c: 3 }, mk: 3, set: ['prepared', 'searching'], res: 'Dos noches de CV. Tu pareja preguntó si estabas bien.', expr: 'tired' },
+  B: { t: 'Confiar. “A mí no me pasa”', fx: { e: 4, v: 2 }, set: ['naive'], res: 'Dormiste tranquil{o}. Por última vez en un tiempo.', expr: 'neutral' },
   variants: [ { needs: ['rodrigo_contact'], over: { from: 'rodrigo',
-    text: '“Marcos canceló todas las 1:1, ¿no? Actualiza tu CV, por si acaso.”' } } ] },
+    text: '“Marcos canceló todas las 1:1, ¿no? Actualiza tu CV, {n}, por si acaso.”' } } ] },
 
-{ id: 'sombreros', kind: 'pool', acts: [3], m: 'MAY', time: '10:40', expr: 'stressed', from: 'marcos',
-  text: '“Desde hoy también eres QA, DevOps y Scrum Master. Mismo cargo, por supuesto.”',
-  A: { t: 'Aceptar', fx: { c: 8, e: -12 }, st: 12, count: { extra: 1, yes: 1 }, res: 'Tres sombreros y una sola cabeza. Tu cabeza lo notó.', expr: 'stressed' },
-  B: { t: 'Poner límites', fx: { c: -6, e: 6, v: 4 }, count: { bound: 1 }, res: 'Marcos te anotó como “difícil”. Tu calendario te anotó como “humano”.', expr: 'neutral' } },
+{ id: 'sombreros', kind: 'pool', needs: ['!jobless'], acts: [3], m: 'MAY', time: '10:40', expr: 'stressed', from: 'marcos',
+  text: '“Desde hoy también eres QA, DevOps y Scrum Master, {n}. Mismo cargo, por supuesto.”',
+  A: { t: 'Aceptar', fx: { c: 8, e: -12 }, st: 12, set: ['overloaded'], count: { extra: 1, yes: 1 }, res: 'Tres sombreros y una sola cabeza. Tu cabeza lo notó.', expr: 'stressed' },
+  B: { t: 'Poner límites', fx: { c: -6, e: 6, v: 4 }, unset: ['overloaded'], count: { bound: 1 }, res: 'Marcos te anotó como “difícil”. Tu calendario te anotó como “humano”.', expr: 'neutral' } },
 
-{ id: 'fiebre', kind: 'pool', acts: [3], weight: 3, needs: ['baby'], m: 'OCT', time: '02:10', expr: 'tired', from: 'pareja',
-  text: '“Tiene fiebre y el release es a las 7 am. ¿Qué hacemos?”',
+{ id: 'fiebre', kind: 'pool', acts: [3], weight: 3, needs: ['!jobless', 'baby'], m: 'OCT', time: '02:10', expr: 'tired', from: 'pareja',
+  text: '“Tiene fiebre y el release es a las 7 am. ¿Qué hacemos, {n}?”',
   A: { t: 'Pedir el día libre', fx: { c: -6, v: 10, e: 6 }, res: 'Marcos respondió “ok” a las 9 am. Tu bebé, a las 3 am: ya dormía.', expr: 'relief' },
   B: { t: 'Cumplir con el release', fx: { c: 8, v: -10, e: -12 }, st: 12, count: { ot: 1, missed: 1 }, res: 'El release salió. Tu bebé durmió en brazos de tu pareja. Tú, en el teclado.', expr: 'tired' } },
 
-{ id: 'integracion', kind: 'pool', acts: [3, 4], m: 'NOV', time: '12:00', expr: 'neutral', from: 'marcos',
+/* the late way back to English: it still costs 18 months, now counted from today */
+{ id: 'ingles-tarde', kind: 'pool', acts: [3, 4, 5], weight: 3, needs: ['eng<2', '!eng_study'], m: 'SEP', time: '17:40', expr: 'tired', from: 'red',
+  text: 'Otra vacante en dólares: “inglés avanzado obligatorio”. Si empiezas hoy, son 18 meses de clases. Terminarías con el mundo ya cambiado.',
+  A: { t: 'Empezar hoy, aunque tarde', fx: { e: -6, p: -5 }, set: ['eng_study'], count: { eng: 1, learn: 1 },
+       res: 'Clases a las 8 pm, después de un día completo. El inglés no perdona los años que le debes.', expr: 'tired' },
+  B: { t: 'Confiar en el traductor y en la IA', fx: { e: 3, c: 1 }, mk: -2, set: ['eng_translator'],
+       res: 'Un traductor sirve para leer. Una entrevista, en cambio, es en vivo.', expr: 'neutral' },
+  variants: [ { needs: ['eng>=1'], over: {
+    text: 'Otra vacante en dólares: “inglés avanzado obligatorio”. Dejaste las clases a medias; retomarlas te cuesta otro año.',
+    A: { t: 'Retomar las clases, aunque tarde', fx: { e: -6, p: -5 }, set: ['eng_study'], count: { learn: 1 },
+         res: 'Volviste al nivel donde lo dejaste. Menos vergüenza que la primera vez, más cansancio.', expr: 'tired' } } } ] },
+
+{ id: 'integracion', kind: 'pool', needs: ['!jobless'], acts: [3, 4], m: 'NOV', time: '12:00', expr: 'neutral', from: 'marcos',
   text: '“Este sábado hay integración de equipo. Es opcional (pero se nota quién va).”',
   A: { t: 'Ir, con sonrisa', fx: { c: 6, v: -6, e: -6 }, res: 'Hubo karaoke. Tu voz fue más honesta que tu sonrisa.', expr: 'tired' },
   B: { t: 'Decir que no', fx: { v: 4, c: -4 }, count: { bound: 1 }, res: 'Te quedaste sin foto grupal, pero con sábado completo.', expr: 'relief' } },
 
 /* ============ 2023 · Reestructuración ============ */
-{ id: 'reunion-rrhh', kind: 'fate', first: true, fix: true, act: 4, m: 'ENE', time: '10:00', expr: 'shock', from: 'paola', camOff: true,
+{ id: 'reunion-rrhh', kind: 'fate', needs: ['!jobless'], first: true, fix: true, act: 4, m: 'ENE', time: '10:00', expr: 'shock', from: 'paola', camOff: true,
   text: 'Reunión urgente de 15 minutos para toda el área. “Cámara apagada, por favor.”',
   btn: 'Entrar a la reunión',
   roll: { base: 0.35, mods: [['prepared', 0.3], ['c>=60', 0.2], ['rodrigo_contact', 0.05]] },
@@ -281,28 +366,47 @@ D.CARDS = [
   lose: { fx: { p: -14, c: -8, e: -6, v: -4 }, set: ['laid_off', 'jobless', 'jobless_ever'], addProps: ['boxes'],
           res: '“Tu puesto fue eliminado.” Liquidación: 2 sueldos. Duración de la reunión: 6 minutos.', expr: 'shock' } },
 
-{ id: 'postulaciones', kind: 'trigger', chain: true, max: 3, needs: ['jobless', 'u2'], m: 'MAY', time: '23:40', expr: 'tired', from: 'bandeja',
-  text: '100 postulaciones, 3 respuestas, 0 entrevistas reales. Son las 11:40 pm y refrescas el correo.',
-  A: { t: 'Aceptar la primera oferta', fx: { p: 6, c: -8, e: -6 }, set: ['rehired'], unset: ['jobless', 'u1', 'u2'], count: { unemp: 1 }, res: 'Menos sueldo, más tranquilidad. Por ahora.', expr: 'tired' },
-  B: { t: 'Esperar una oferta mejor', fx: { p: -14, c: 10, v: -6 }, set: ['rehired'], unset: ['jobless', 'u1', 'u2'], count: { unemp: 2 }, res: 'Mes y medio más. Tu mamá preguntó por tus “reuniones”, con cariño y miedo.', expr: 'stressed' },
+/* Finding work is no longer guaranteed: it depends on how current you are (mk), on English, and on the year. A failed attempt leaves you jobless — and paying — until the next one. */
+{ id: 'postulaciones', kind: 'trigger', chain: true, max: 3, gap: 1, needs: ['jobless', 'u2'], m: 'MAY', time: '23:40', expr: 'tired', from: 'bandeja',
+  text: '100 postulaciones, 3 respuestas, 0 entrevistas reales. Son las 11:40 pm y refrescas el correo. {?act>=6|Casi todas piden “AI Engineer”.|}',
+  A: { t: 'Aceptar la primera oferta', roll: { base: 0.85, mods: [['mk>=55', 0.08], ['mk<35', -0.12], ['eng<2', -0.08], ['act>=6', -0.08]] },
+       win:  { fx: { p: 6, c: -8, e: -6 }, mk: -2, set: ['rehired'], unset: ['jobless', 'u1', 'u2', 'search_failed'], count: { unemp: 1, jumps: 1 }, newjob: true,
+               res: 'Menos sueldo, más tranquilidad. Por ahora.', expr: 'tired' },
+       lose: { fx: { p: -6, c: -4, v: -4 }, set: ['search_failed'], count: { unemp: 1, wall: 1 },
+               res: 'La “primera oferta” no llegó. Llegó otro rechazo automático, a las 3:12 am.', expr: 'stressed' } },
+  B: { t: 'Esperar una oferta mejor', roll: { base: 0.62, mods: [['mk>=55', 0.2], ['eng>=2', 0.2], ['mk<35', -0.15], ['eng<2', -0.1], ['act>=6', -0.1]] },
+       win:  { fx: { p: -10, c: 10, v: -6 }, mk: 2, set: ['rehired'], unset: ['jobless', 'u1', 'u2', 'search_failed'], count: { unemp: 2, jumps: 1 }, newjob: true,
+               res: 'Mes y medio más. Llegó una mejor. Tu mamá preguntó por tus “reuniones”, con cariño y miedo.', expr: 'stressed' },
+       lose: { fx: { p: -14, c: -2, v: -6 }, set: ['search_failed'], count: { unemp: 2, wall: 1 },
+               res: 'Esperaste. Las ofertas “mejores” pedían {?eng<2|inglés avanzado|stacks que no usas}. Tu cuenta no esperó.', expr: 'tired' } },
   variants: [ { needs: ['rodrigo_contact'], over: { from: 'rodrigo',
     text: '“Vi lo de tu empresa. Mi equipo está buscando gente. Te puedo referir, si quieres.”',
-    A: { t: 'Aceptar la referencia de Rodrigo', fx: { p: 10, c: 8 }, set: ['rehired', 'referred'], unset: ['jobless', 'u1', 'u2'], res: 'Rodrigo hizo una llamada. Un mes después tenías oferta. Aquel “quédate 30 minutos” de 2019 seguía rindiendo.', expr: 'happy' },
-    B: { t: 'Seguir buscando por tu cuenta', fx: { c: 4, p: -8, v: -4 }, set: ['rehired'], unset: ['jobless', 'u1', 'u2'], count: { unemp: 2 }, res: 'Querías demostrar que podías sin ayuda. Orgullo caro.', expr: 'tired' } } } ] },
+    A: { t: 'Aceptar la referencia de Rodrigo', roll: { base: 0.92, mods: [['eng<2', -0.5], ['mk<35', -0.1]] },
+         win:  { fx: { p: 10, c: 8 }, mk: 6, set: ['rehired', 'referred'], unset: ['jobless', 'u1', 'u2', 'search_failed'], count: { jumps: 1 }, newjob: true,
+                 res: 'Rodrigo hizo una llamada. Un mes después tenías oferta. Aquel “quédate 30 minutos” de 2019 seguía rindiendo.', expr: 'happy' },
+         lose: { fx: { c: -6, p: -4, v: -2 }, set: ['search_failed'], count: { unemp: 1, wall: 1 },
+                 res: 'Pasaste el filtro técnico y chocaste con la ronda en inglés. Rodrigo: “Te dije que abría puertas”.', expr: 'tired' } },
+    B: { t: 'Seguir buscando por tu cuenta', roll: { base: 0.62, mods: [['mk>=55', 0.2], ['eng>=2', 0.2], ['mk<35', -0.15], ['act>=6', -0.1]] },
+         win:  { fx: { c: 4, p: -8, v: -4 }, set: ['rehired'], unset: ['jobless', 'u1', 'u2', 'search_failed'], count: { unemp: 2, jumps: 1 }, newjob: true,
+                 res: 'Querías demostrar que podías sin ayuda. Orgullo caro, pero funcionó.', expr: 'tired' },
+         lose: { fx: { c: -2, p: -12, v: -6 }, set: ['search_failed'], count: { unemp: 2, wall: 1 },
+                 res: 'Querías demostrar que podías sin ayuda. Orgullo caro: ni la ayuda llegó a tiempo ni la oferta.', expr: 'stressed' } } } },
+    { needs: ['search_failed'], over: {
+    text: 'Otro año de postulaciones. Ya ni las plantillas responden. {?eng<2|El filtro de inglés te descarta antes de que alguien te lea.|El filtro automático descarta tu CV por palabras clave.}' } } ] },
 
-{ id: 'sobreviviente', kind: 'anchor', act: 4, needs: ['!laid_off'], m: 'MAR', time: '19:30', expr: 'stressed', from: 'marcos',
-  text: '“Gracias por quedarte. Ahora el equipo es más pequeño, pero más comprometido.” Tu carga: la de tres.',
-  A: { t: 'Estirarte: “yo puedo”', fx: { c: 10, e: -14 }, st: 12, count: { ot: 1, extra: 1 }, res: 'Hiciste el trabajo de tres. Te agradecieron con un emoji.', expr: 'tired' },
-  B: { t: 'Poner límites', fx: { c: -8, e: 5, v: 4 }, count: { bound: 1 }, res: 'Dijiste “no llego a todo”. Por primera vez, alguien tomó nota.', expr: 'neutral' } },
+{ id: 'sobreviviente', kind: 'anchor', act: 4, needs: ['!jobless', '!laid_off'], m: 'MAR', time: '19:30', expr: 'stressed', from: 'marcos',
+  text: '“Gracias por quedarte, {n}. Ahora el equipo es más pequeño, pero más comprometido.” Tu carga: la de tres.',
+  A: { t: 'Estirarte: “yo puedo”', fx: { c: 10, e: -14 }, st: 12, set: ['overloaded'], count: { ot: 1, extra: 1 }, res: 'Hiciste el trabajo de tres. Te agradecieron con un emoji.', expr: 'tired' },
+  B: { t: 'Poner límites', fx: { c: -8, e: 5, v: 4 }, unset: ['overloaded'], count: { bound: 1 }, res: 'Dijiste “no llego a todo”. Por primera vez, alguien tomó nota.', expr: 'neutral' } },
 
 { id: 'cuerpo-avisa', kind: 'trigger', needs: ['stress>=50'], max: 2, gap: 1, m: 'JUN', time: '03:12', expr: 'sick', from: 'dra', left: 'pills',
-  text: '“Gastritis, migraña y contractura. Es estrés: necesitas descansar, no pastillas.”',
+  text: '“{n}: gastritis, migraña y contractura. Es estrés: necesitas descansar, no pastillas.”',
   A: { t: 'Pedir 3 días de descanso médico', fx: { e: 20, c: -6, v: 4 }, st: -25, set: ['rested'], unset: ['sick_now'],
        res: 'Dormiste 11 horas. El mundo no se cayó.', expr: 'relief' },
   B: { t: 'Tomar la pastilla y seguir', fx: { c: 4, e: -10, p: -3 }, st: 12, count: { body: 1 }, set: ['sick_now'],
        res: 'El chat no se cura con ibuprofeno. Tu cuerpo tomó nota.', expr: 'sick' } },
 
-{ id: 'quincena', kind: 'pool', acts: [4], m: 'ABR', time: '09:00', expr: 'stressed', from: 'banco',
+{ id: 'quincena', kind: 'pool', needs: ['!jobless'], acts: [4], m: 'ABR', time: '09:00', expr: 'stressed', from: 'banco',
   text: 'Tu quincena se retrasa 10 días. {?rent|El alquiler|La luz de casa} no espera.',
   A: { t: 'Pedir un adelanto', fx: { p: 8, c: -4 }, res: 'RRHH te lo aprobó con cara de “otra vez”.', expr: 'tired' },
   B: { t: 'Pagar con tarjeta', fx: { p: 10 }, set: ['debt'], count: { loans: 1 }, res: 'Dos cuotas, tres meses, cinco intereses. Las matemáticas del banco.', expr: 'stressed' } },
@@ -317,42 +421,57 @@ D.CARDS = [
   A: { t: 'Guardarla y buscar rápido', fx: { p: 10, e: -4 }, res: 'La pusiste en la cuenta de “no tocar”. La tocaste en el mes 2.', expr: 'tired' },
   B: { t: 'Tomarte 2 semanas para respirar', fx: { e: 12, p: -6, v: 4 }, res: 'Caminaste, dormiste y llamaste a tu mamá. Respirar también es inversión.', expr: 'relief' } },
 
-{ id: 'apagon', kind: 'pool', acts: [2, 3, 4, 5], m: 'SEP', time: '10:45', expr: 'shock', from: 'luz', ambient: 'apagon',
+{ id: 'apagon', kind: 'pool', needs: ['!jobless'], acts: [2, 3, 4, 5], m: 'SEP', time: '10:45', expr: 'shock', from: 'luz', ambient: 'apagon',
   text: 'Se fue la luz en todo el barrio. Tu laptop tiene 23 % y un daily en 5 minutos.',
   A: { t: 'Seguir con el 23 % y rezar', fx: { c: 4, e: -4 }, res: 'Terminaste con 2 %. La laptop se apagó con la dignidad intacta.', expr: 'stressed' },
   B: { t: 'Avisar y desconectarte', fx: { e: 4, c: -3 }, res: 'Apagaste todo. Por una hora, nada fue urgente.', expr: 'relief' } },
 
 /* ============ 2024 · Tech Lead (sin aumento) ============ */
-{ id: 'ascenso', kind: 'anchor', act: 5, m: 'MAR', time: '17:45', expr: 'neutral', from: 'marcos',
+{ id: 'ascenso', kind: 'anchor', needs: ['!jobless'], act: 5, m: 'MAR', time: '17:45', expr: 'neutral', from: 'marcos',
   text: '“Felicidades, {n}: eres el nuevo Tech Lead. {?ot>=3|Siempre te quedas cuando hace falta. Por eso.|Confiamos en ti.} Mismo sueldo, claro.”',
-  A: { t: 'Aceptar con orgullo', fx: { c: 14, e: -10 }, st: 10, set: ['unpaid_promo'], count: { extra: 1, yes: 1 },
+  A: { t: 'Aceptar con orgullo', fx: { c: 14, e: -10 }, st: 10, set: ['unpaid_promo', 'overloaded'], count: { extra: 1, yes: 1 },
        res: 'Ahora haces tu trabajo, el de Rodrigo y el de Marcos. El título llegó sin sueldo.', expr: 'tired' },
   B: { t: 'Condicionarlo al aumento', roll: { base: 0.4, mods: [['negotiated', 0.1], ['c>=65', 0.1]] },
        win:  { fx: { p: 16, c: 8 }, raise: 1, res: 'Te aprobaron S/ 700 más. Marcos “lo estaba conversando” (ya lo había aprobado).', expr: 'happy' },
        lose: { fx: { c: -12, e: -4 }, res: '“Entonces lo vemos con otra persona.”', expr: 'stressed' } },
-  variants: [ { needs: ['rehired'], over: { from: 'nueva',
+  variants: [ { needs: ['jumps>=1'], over: { from: 'nueva',
     text: '“Te contratamos como Senior… con sueldo de semi-senior. Para empezar.”',
     A: { t: 'Aceptar el título', fx: { p: 8, c: 8 }, res: 'Nuevo título, mismo problema, otro logo.', expr: 'neutral' },
     B: { t: 'Negociar el sueldo', roll: { base: 0.45, mods: [['referred', 0.15]] },
          win:  { fx: { p: 12, c: 6 }, raise: 1, res: 'Subieron la banda. “Es la primera vez que lo hacemos.”', expr: 'happy' },
          lose: { fx: { c: -6 }, res: '“Ese es el rango.” Y el rango es el rango.', expr: 'tired' } } } } ] },
 
-{ id: 'entrevista', kind: 'pool', acts: [5], m: 'MAY', time: '13:10', expr: 'stressed', from: 'nueva',
+/* "tech lead here, mid out there": a practice test from Fer shows how far the market moved. Skipped if you kept your skills current (mk ≥ 60). */
+{ id: 'espejo-mercado', kind: 'anchor', act: 5, needs: ['mk<52', '!jobless'], m: 'FEB', time: '21:20', expr: 'shock', from: 'fer',
+  text: '“Prueba técnica de práctica”, te manda Fer: cloud, contenedores, testing moderno. Fallas la mitad. En tu empresa eres lead; aquí, un mid de 2019.',
+  A: { t: 'Aceptar la brecha y estudiar en serio', fx: { e: -8, p: -4, c: -2 }, st: 4, mk: 14, set: ['upskilling'], count: { learn: 1 },
+       res: 'Seis meses de laboratorios de noche. Dolió el ego. Tu CV, por fin, dejó de oler a 2019.', expr: 'stressed' },
+  B: { t: 'Ignorarlo: “aquí soy el Tech Lead”', fx: { c: 4, e: 2 }, mk: -4, set: ['comfort'],
+       res: 'En tu empresa eres imprescindible. Fuera de ella, nadie sabe quién eres… ni qué usas.', expr: 'neutral' },
+  variants: [ { needs: ['tenure<4'], over: {   // changed company, not stack: the same reality check for people who moved (e.g. rehired after a layoff)
+    text: '“Prueba técnica de práctica”, te manda Fer: cloud, contenedores, testing moderno. Fallas la mitad. Cambiaste de empresa, pero no de stack.',
+    B: { t: 'Ignorarlo: “ya conseguí trabajo, ¿qué más?”', fx: { c: 4, e: 2 }, mk: -4, set: ['comfort'],
+         res: 'Tienes trabajo. Mientras tanto el mercado sigue cambiando de herramientas sin avisarte.', expr: 'neutral' } } } ] },
+
+{ id: 'entrevista', kind: 'pool', needs: ['!jobless'], acts: [5], m: 'MAY', time: '13:10', expr: 'stressed', from: 'nueva',
   text: 'Una entrevista en dólares, a escondidas, a la hora de almuerzo. Tu fondo de cámara es una “biblioteca”.',
-  A: { t: 'Seguir el proceso', fx: { c: 8, e: -6 }, set: ['offer'], res: 'Pasaste a la ronda final. Tu “cita médica” duró 3 horas.', expr: 'happy' },
+  A: { t: 'Seguir el proceso', roll: { base: 0.45, mods: [['mk>=55', 0.2], ['mk<35', -0.2], ['eng>=2', 0.25], ['eng<1', -0.2]] },
+       win:  { fx: { c: 8, e: -6, p: 4 }, mk: 4, set: ['offer'], res: 'Pasaste la ronda final{?eng>=2|, incluida la de inglés|}. Tu “cita médica” duró 3 horas.', expr: 'happy' },
+       lose: { fx: { c: -4, e: -6 }, mk: 2, count: { wall: 1 },
+               res: '{?eng<2|Pidieron inglés avanzado y se te acabaron las palabras. Para volver a intentarlo necesitas 18 meses.|“Fuerte en tu stack, pero ese stack tiene 5 años.” El mercado no esperó.}', expr: 'tired' } },
   B: { t: 'Cancelarla', fx: { e: 3, v: 3 }, res: 'Cancelaste. Te quedó el sabor a “¿y si?”.', expr: 'neutral' } },
 
-{ id: 'vacaciones', kind: 'pool', acts: [5], m: 'JUL', time: '18:20', expr: 'tired', from: 'calendario',
+{ id: 'vacaciones', kind: 'pool', needs: ['!jobless'], acts: [5], m: 'JUL', time: '18:20', expr: 'tired', from: 'calendario',
   text: 'Hace 2 años que no tomas vacaciones. Y hay release.',
   A: { t: 'Tomar una semana', fx: { e: 16, v: 10, c: -8 }, st: -15, res: 'Dormiste, comiste y no abriste el chat. Tu cuerpo escribió una carta de agradecimiento.', expr: 'relief' },
   B: { t: 'Posponer otra vez', fx: { c: 8, e: -10 }, st: 10, count: { ot: 1 }, res: 'Vacaciones acumuladas: 61 días. Valor para la empresa: gratis.', expr: 'tired' } },
 
 { id: 'presente-ausente', kind: 'pool', acts: [5], needs: ['partner'], m: 'AGO', time: '20:30', expr: 'tired', from: 'pareja',
-  text: '“Estás aquí, pero no estás.” Tu pareja lo dice bajito. La cena está servida.',
+  text: '“Estás aquí, {n}, pero no estás.” Tu pareja lo dice bajito. La cena está servida.',
   A: { t: 'Cerrar la laptop y cenar juntos', fx: { v: 14, c: -4 }, count: { bound: 1, strain: -1 }, res: 'Cenaron sin pantallas. La sopa estaba tibia; la conversación, calentita.', expr: 'happy' },
   B: { t: 'Cinco minutos más…', fx: { c: 4, v: -12 }, count: { missed: 1, strain: 1 }, res: 'Fueron 40 minutos. La cena se enfrió; la conversación, también.', expr: 'stressed' } },
 
-{ id: 'yoga', kind: 'pool', acts: [5], m: 'SEP', time: '12:00', expr: 'neutral', from: 'paola',
+{ id: 'yoga', kind: 'pool', needs: ['!jobless'], acts: [5], m: 'SEP', time: '12:00', expr: 'neutral', from: 'paola',
   text: '“Yoga corporativo de 15 min, en horario de trabajo. Cámara encendida, por favor.”',
   A: { t: 'Ir y respirar de verdad', fx: { e: 6, c: -2 }, res: 'Por 15 minutos, nadie te pidió nada. Fue lo más productivo del mes.', expr: 'relief' },
   B: { t: 'Seguir trabajando, cámara apagada', fx: { c: 4, e: -5 }, res: 'Estiraste una pierna y respondiste 6 correos.', expr: 'tired' } },
@@ -365,15 +484,62 @@ D.CARDS = [
        res: 'Seguiste 12 minutos más. Luego llegó el silencio de 14 cámaras.', expr: 'sick' } },
 
 /* ============ 2025 · Llega la IA ============ */
-{ id: 'agente-ia', kind: 'anchor', act: 6, m: 'FEB', time: '23:05', expr: 'neutral', from: 'direccion',
+{ id: 'agente-ia', kind: 'anchor', needs: ['!jobless'], act: 6, m: 'FEB', time: '23:05', expr: 'neutral', from: 'direccion',
   text: '“Desde hoy tenemos un agente de IA. Ahora entregarán el doble, con el mismo equipo y el mismo sueldo.”',
-  A: { t: 'Aprender a dirigirlo', fx: { c: 12, e: -6 }, set: ['ai_friend'], res: 'Dejaste de picar código. Empezaste a revisar el de un robot. Cansa más de lo que parece.', expr: 'tired' },
-  B: { t: 'Resistirte: “yo escribo mi código”', fx: { c: -10, e: 6, v: 2 }, set: ['ai_resist'], res: 'Tu código es artesanal. También lento. Marcos lo anotó.', expr: 'neutral' } },
+  A: { t: 'Aprender a dirigirlo', fx: { c: 12, e: -6 }, mk: 8, set: ['ai_friend'], count: { learn: 1 }, res: 'Dejaste de picar código. Empezaste a revisar el de un robot. Cansa más de lo que parece.', expr: 'tired' },
+  B: { t: 'Resistirte: “yo escribo mi código”', fx: { c: -10, e: 6, v: 2 }, mk: -6, set: ['ai_resist'], res: 'Tu código es artesanal. También lento. Marcos lo anotó.', expr: 'neutral' } },
 
-{ id: 'alucinacion', kind: 'pool', acts: [6], m: 'ABR', time: '16:50', expr: 'shock', from: 'prod',
+/* the title disappears: "Software Engineer" becomes "AI Engineer" overnight — same job, more scope, same band */
+{ id: 'titulo-ia', kind: 'anchor', act: 6, needs: ['!jobless'], m: 'MAY', time: '12:30', expr: 'shock', from: 'paola',
+  text: 'Reorganización de cargos: “Software Engineer” deja de existir. Ahora todos son “AI Engineer”. Mismo trabajo, más alcance, misma banda.',
+  A: { t: 'Aceptar el título y certificarte en IA', fx: { c: 6, e: -5, p: -3 }, mk: 6, set: ['ai_retitled'], count: { extra: 1, learn: 1 },
+       res: 'Tu LinkedIn dice “AI Engineer”. Tu sueldo sigue diciendo “Software Engineer”. El alcance, en cambio, se triplicó.', expr: 'tired' },
+  B: { t: 'Exigir la banda salarial de AI Engineer', roll: { base: 0.3, mods: [['mk>=55', 0.2], ['ai_friend', 0.1], ['c>=65', 0.1], ['offer', 0.15]] },
+       win:  { fx: { p: 14, c: 6 }, mk: 3, raise: 1, set: ['ai_retitled'], res: 'Cambiaron título y banda. Fuiste de los pocos que preguntaron cuánto valía el nombre nuevo.', expr: 'happy' },
+       lose: { fx: { c: -8, e: -4 }, set: ['ai_retitled'], res: '“El título es un reconocimiento, no una banda.” Y el agente cuesta menos que tú: Marcos lo sabe.', expr: 'stressed' } } },
+
+/* the second wave of layoffs: this time the reason is "efficiency with AI". Survive and you inherit the dead colleagues' tickets. */
+{ id: 'reunion-ia', kind: 'fate', act: 6, needs: ['!jobless'], m: 'SEP', time: '10:00', expr: 'shock', from: 'direccion', camOff: true,
+  text: 'Reunión urgente de 10 minutos con Dirección: “Optimizamos el área con IA.” Cámara apagada, por favor.',
+  btn: 'Entrar a la reunión',
+  roll: { base: 0.68, mods: [['ai_friend', 0.15], ['ai_resist', -0.2], ['mk>=55', 0.1], ['mk<35', -0.15], ['c>=65', 0.05]] },
+  win:  { fx: { e: -6, c: 4 }, set: ['ai_survivor'], res: '“Pasamos de 14 a 6.” Te felicitan por seguir. Los 8 que salieron eran personas con nombre, taza y silla.', expr: 'stressed' },
+  lose: { fx: { p: -14, c: -8, e: -6, v: -4 }, set: ['laid_off', 'ai_laid_off', 'jobless', 'jobless_ever'], addProps: ['boxes'],
+          res: '“Tu rol fue absorbido por un agente.” Reunión de 8 minutos. Tu puesto se republicó como “AI Engineer”, con inglés avanzado.', expr: 'shock' } },
+
+{ id: 'tras-despidos-ia', kind: 'trigger', chain: true, max: 1, needs: ['ai_survivor', '!jobless'], m: 'OCT', time: '09:10', expr: 'tired', from: 'marcos',
+  text: 'Los 8 que salieron dejaron 40 tickets abiertos. Todos están ahora en tu tablero, con una nota: “prioridad alta”.',
+  A: { t: 'Absorberlo todo: “yo me encargo”', fx: { c: 10, e: -10, v: -4 }, st: 8, set: ['overloaded'], count: { ot: 1, extra: 1, yes: 1 },
+       res: 'Hiciste el trabajo de tres, otra vez. La IA escribe, tú arreglas. De premio, un emoji.', expr: 'tired' },
+  B: { t: 'Priorizar y decir qué no se hará', fx: { c: -6, e: 4, v: 2 }, unset: ['overloaded'], count: { bound: 1 },
+       res: 'Marcos escribió “entendido” y te anotó como “resistente al cambio”. Dos cosas se cayeron. Nadie murió.', expr: 'neutral' } },
+
+{ id: 'alucinacion', kind: 'pool', needs: ['!jobless'], acts: [6], m: 'ABR', time: '16:50', expr: 'shock', from: 'prod',
   text: 'El agente inventó una función que no existe… y rompió producción un viernes.',
   A: { t: 'Culpar a la IA en el reporte', fx: { c: -8 }, res: 'El informe decía “error del modelo”. Marcos preguntó: “¿Y quién lo supervisa?”.', expr: 'stressed' },
-  B: { t: 'Revisar cada línea de ahora en adelante', fx: { c: 8, e: -8 }, res: 'Ahora la IA escribe y tú lees. Dos trabajos en uno. Ya te acostumbraste.', expr: 'tired' } },
+  B: { t: 'Revisar cada línea de ahora en adelante', fx: { c: 8, e: -8 }, mk: 2, res: 'Ahora la IA escribe y tú lees. Dos trabajos en uno. Ya te acostumbraste.', expr: 'tired' } },
+
+/* AI code in production, during the business's high season: QA rejections, a 3-week release, and merges nobody read */
+{ id: 'qa-rechaza', kind: 'pool', needs: ['!jobless'], acts: [6], weight: 3, m: 'SEP', time: '15:40', expr: 'stressed', from: 'lucho',
+  text: '“47 observaciones de QA en este release; 31 vienen de código generado por IA.” El release se mueve 3 semanas, en plena temporada alta.',
+  A: { t: 'Corregir cada observación tú mismo', fx: { c: 8, e: -10 }, st: 8, count: { ot: 1 },
+       res: '3 fines de semana, 47 tickets y cero gracias. El release salió. Tu espalda también cobró.', expr: 'tired' },
+  B: { t: 'Pedir bajar el alcance del release', fx: { c: -6, e: 4 }, count: { bound: 1 },
+       res: 'Recortaron lo no esencial. En temporada alta, “recortar” sonó a herejía.', expr: 'neutral' } },
+
+{ id: 'merge-ia-prod', kind: 'pool', needs: ['!jobless'], acts: [6], weight: 3, m: 'NOV', time: '20:40', expr: 'shock', from: 'prod',
+  text: 'Temporada alta. Alguien mergeó a producción un PR generado por IA sin leerlo. Pagos caídos a las 8:40 pm.',
+  A: { t: 'Hacer rollback y quedarte hasta resolverlo', fx: { c: 8, e: -10, v: -4 }, st: 8, count: { ot: 1 },
+       res: 'Rollback a las 11:30 pm. Nadie sabe quién lo mergeó; todos saben quién lo arregló.', expr: 'tired' },
+  B: { t: 'Escalar a la guardia y volver a dormir', fx: { c: -6, e: 6 }, count: { bound: 1 },
+       res: 'La guardia tardó 3 horas. En el postmortem pidieron “más ownership”. Esa frase, otra vez.', expr: 'neutral' } },
+
+{ id: 'sin-vacantes-junior', kind: 'pool', acts: [6], weight: 2, m: 'JUL', time: '21:05', expr: 'tired', from: 'hermano',
+  text: 'Tu hermano menor se graduó. 400 postulaciones, 0 entrevistas: “ya no contratamos juniors, lo hace la IA”. Te pide ayuda.',
+  A: { t: 'Armar un proyecto real con él y practicar', fx: { v: 8, e: -8, c: 2 }, mk: 3, set: ['mentored'], count: { learn: 1 },
+       res: 'Armaron un proyecto juntos. Él está más cerca de su primera entrevista. Tú recordaste lo que sabías hacer.', expr: 'happy' },
+  B: { t: '“Ya saldrá algo”', fx: { v: -6, e: 2 },
+       res: 'Ya saldrá algo, le dijiste. Él te miró como quien oye una promesa vieja.', expr: 'tired' } },
 
 { id: 'equity', kind: 'pool', acts: [6], m: 'MAY', time: '11:30', expr: 'neutral', from: 'nueva',
   text: 'Una startup te ofrece 0.2 % de acciones… y un sueldo “simbólico”.',
@@ -387,27 +553,48 @@ D.CARDS = [
   A: { t: 'Responder al bot', fx: { c: 4 }, res: 'Respondiste 12 preguntas. “Gracias, nos pondremos en contacto.” (No lo hicieron.)', expr: 'neutral' },
   B: { t: 'Pedir hablar con un humano', fx: { c: -4, v: 2 }, res: 'Un humano apareció 4 días después. Era el mismo bot con otra foto.', expr: 'tired' } },
 
-{ id: 'peque-camara', kind: 'pool', acts: [6], weight: 3, needs: ['baby'], m: 'MAR', time: '10:20', expr: 'happy', from: 'equipo', ambient: 'kid',
+{ id: 'peque-camara', kind: 'pool', acts: [6], weight: 3, needs: ['!jobless', 'baby'], m: 'MAR', time: '10:20', expr: 'happy', from: 'equipo', ambient: 'kid',
   text: 'Tu peque se cuela en cámara con una crayola y saluda a todo el equipo. 14 personas sonríen.',
   A: { t: 'Dejarlo saludar', fx: { v: 10, c: -4 }, res: 'Tu peque dijo “¡hola!”. Marcos escribió: “qué tierno, luego hablamos de profesionalismo”.', expr: 'happy' },
   B: { t: 'Sacarlo rápido de cámara', fx: { c: 4, v: -8 }, res: 'Quedaste impecable. Tu peque lloró; tu pareja te miró.', expr: 'stressed' } },
 
-{ id: 'junior', kind: 'pool', acts: [6], weight: 3, needs: ['mentor'], m: 'ABR', time: '14:30', expr: 'neutral', from: 'tomas',
-  text: '“Perdón, {n}, ¿me ayudas con este bug? Es mi primera semana y nadie me responde.”',
-  A: { t: 'Quedarte 30 minutos a enseñarle', fx: { c: 6, v: 6, e: -5 }, set: ['mentored'], count: { learn: 1 },
-       res: 'Le enseñaste a depurar. Recordaste una tarde de 2019 con luz anaranjada.', expr: 'happy' },
-  B: { t: '“Ahorita no puedo”', fx: { e: 4 }, res: 'Tomás asintió y buscó en un foro. A las 5 pm, el bug seguía.', expr: 'neutral' } },
+{ id: 'junior', kind: 'pool', acts: [6], weight: 3, needs: ['!jobless', 'mentor', 'jumps<1'], m: 'ABR', time: '14:30', expr: 'neutral', from: 'tomas',
+  text: '“Mi práctica termina el viernes, {n}. Dicen que ya no contratan juniors: la IA hace lo mío. ¿Me das una carta de recomendación?”',
+  A: { t: 'Escribirle la carta y presentarle contactos', fx: { c: 2, v: 6, e: -5 }, mk: 2, set: ['mentored'], count: { learn: 1 },
+       res: 'Le escribiste una carta y le presentaste a tres contactos. Recordaste una tarde de 2019 con luz anaranjada.', expr: 'happy' },
+  B: { t: '“Ahorita no puedo”', fx: { e: 4 }, res: 'Tomás asintió y se llevó su caja. A las 5 pm, su escritorio era un monitor apagado.', expr: 'neutral' } },
 
 /* ============ 2026 · Cámara encendida ============ */
+/* 2026, the reckoning: the portal shows the market as it is — AI titles, English required, no junior vacancies. Odds depend on everything you did (or didn't) in 7 years. */
+{ id: 'mercado-2026', kind: 'anchor', fix: true, act: 7, needs: ['!jobless'], m: 'JUN', time: '22:15', expr: 'tired', from: 'red',
+  text: 'Abres el portal de empleo. “Software Engineer”: 3 vacantes. “AI Engineer”: 1,240, casi todas en inglés. “Junior”: ninguna.',
+  A: { t: 'Postular a 30 vacantes de AI Engineer', roll: { base: 0.3, mods: [['mk>=55', 0.25], ['mk>=70', 0.1], ['mk<35', -0.15], ['eng>=2', 0.3], ['eng<2', -0.15], ['ai_friend', 0.1], ['jumps>=1', 0.05]] },
+       win:  { fx: { p: 16, c: 8, e: -6 }, mk: 4, raise: 1, set: ['offer', 'ai_hired'],
+               res: 'Pasaste la ronda en inglés y el live coding con IA. Oferta en dólares. Tu LinkedIn lo celebra; tú, por fin, respiras.', expr: 'happy' },
+       lose: { fx: { c: -8, v: -4, e: -6 }, mk: 2, count: { wall: 1 },
+               res: '{?eng<2|Casi todas piden inglés avanzado. Necesitabas 18 meses de práctica; el mercado no los esperó.|“Overqualified para junior, underqualified para senior.” Casi lo dices tú.}', expr: 'tired' } },
+  B: { t: 'Quedarte: “al menos tengo trabajo”', fx: { p: 2, c: 2, v: -2 }, set: ['trapped'],
+       res: 'Te quedaste. Eres indispensable aquí… porque nadie más entiende ese sistema.', expr: 'neutral' } },
+
 { id: 'siete-anios', kind: 'anchor', fix: true, act: 7, m: 'SEP', time: '09:05', expr: 'neutral', from: 'paola',
-  text: '“¡Felicidades por tus 7 años en la empresa! Sigues en la misma banda salarial.” {?raises>=1|(Bueno, casi.)|(Qué estabilidad.)}',
+  text: '“¡Felicidades por tus 7 años en la empresa, {n}! Sigues en la misma banda salarial.” {?raises>=1|(Bueno, casi.)|(Qué estabilidad.)}',
   A: { t: 'Imprimirlo y enmarcarlo (con ironía)', fx: { v: 6, c: -2 }, res: 'Está en tu pared, junto al calendario. Nadie lo entiende… excepto tú.', expr: 'happy' },
-  B: { t: 'Pedir una reunión de compensación', roll: { base: 0.4, mods: [['c>=60', 0.15], ['offer', 0.15]] },
+  B: { t: 'Pedir una reunión de compensación', roll: { base: 0.4, mods: [['c>=60', 0.15], ['offer', 0.15], ['mk>=55', 0.1]] },
        win:  { fx: { p: 16, c: 6 }, raise: 1, res: 'Con una oferta en la mano, la banda subió un nivel. Pedirlo cuesta menos cada vez.', expr: 'happy' },
-       lose: { fx: { c: -6, e: -4 }, res: '“No hay presupuesto.” Pero sí para el sillón de la sala de espera.', expr: 'tired' } } },
+       lose: { fx: { c: -6, e: -4 }, res: '“No hay presupuesto.” Pero sí para el sillón de la sala de espera.', expr: 'tired' } },
+  variants: [ { needs: ['jobless'], over: { from: 'bandeja',
+    text: 'Hoy se cumplen 7 años de tu primer contrato. Tu bandeja: cientos de postulaciones automáticas y un mensaje de Fer: “¿cómo vas?”.',
+    A: { t: 'Enmarcar tu primer contrato y seguir', fx: { v: 6, c: -2 }, res: 'Está en tu pared. Te recuerda por qué empezaste… y que lo hiciste con S/ 1,800 y mucho miedo.', expr: 'tired' },
+    B: { t: 'Escribirle a tu red: “estoy buscando”', roll: { base: 0.4, mods: [['mk>=55', 0.15], ['eng>=2', 0.15], ['mentor', 0.1], ['mentored', 0.15]] },
+         win:  { fx: { p: 12, c: 6, v: 4 }, mk: 4, set: ['rehired', 'referred'], unset: ['jobless', 'u1', 'u2', 'search_failed'], count: { jumps: 1 }, newjob: true,
+                 res: 'Siete años de gente a la que ayudaste. Una de esas personas respondió en una hora: “mi equipo busca a alguien como tú”.', expr: 'happy' },
+         lose: { fx: { v: 2, c: -2 }, res: 'Veinte mensajes, seis respuestas amables y ninguna vacante. Pedir ayuda igual te hizo sentir menos solo.', expr: 'tired' } } } },
+    { needs: ['jumps>=1'], over: {
+    text: '“¡Felicidades por tus {#tenure} años en la empresa!” Para llegar aquí tuviste que irte de la anterior. {?raises>=2|Se nota en tu banda.|Se nota en tu cuenta.}',
+    A: { t: 'Celebrarlo: tu mejor decisión fue moverte', fx: { v: 6, c: 2 }, res: 'Lo enmarcaste: no por la empresa, sino por la decisión de irte a tiempo.', expr: 'happy' } } } ] },
 
 { id: 'sabado-17', kind: 'anchor', fix: true, act: 7, last: true, m: '17 OCT', time: '08:30', expr: 'neutral', from: 'fer',
-  text: '“Sábado 17 de octubre. Hay un hackathon en Lima. ¿Y si haces un juego sobre tu propia vida?”',
+  text: '“{n}, sábado 17 de octubre. Hay un hackathon en Lima. ¿Y si haces un juego sobre tu propia vida?”',
   A: { t: 'Dejar la cámara encendida y vibecodear', fx: { c: 8, e: -8 }, set: ['vibe'], res: 'Abriste la laptop. La cámara se encendió. Empezaste a escribir esta historia.', expr: 'happy' },
   B: { t: 'Cerrar la laptop y salir a caminar', fx: { e: 14, v: 10 }, set: ['walk'], res: 'Cerraste la tapa. La cámara se apagó por primera vez en 7 años. Afuera había sol.', expr: 'relief' } },
 
@@ -425,7 +612,7 @@ D.CARDS = [
        res: 'El dolor bajó. La causa, no.', expr: 'tired' } },
 
 { id: 'hemorroides', kind: 'risk', group: 'health', acts: [3, 4, 5, 6], needs: ['!hemorrhoids'], m: 'JUN', time: '19:10', expr: 'sick', from: 'dra',
-  text: '“Hemorroides.” Tantas horas sentad{o} y aguantar el baño “hasta terminar el deploy” tienen consecuencias.',
+  text: '“Hemorroides, {n}.” Tantas horas sentad{o} y aguantar el baño “hasta terminar el deploy” tienen consecuencias.',
   A: { t: 'Ir al médico y moverte más', fx: { p: -6, e: 6, v: 2 }, st: -6, set: ['hemorrhoids', 'hem_care'], count: { dx: 1, care: 1 },
        res: 'Fibra, agua y pausas. Nada glamoroso, todo efectivo.', expr: 'relief' },
   B: { t: 'Aguantar y seguir', fx: { c: 4, e: -8 }, st: 8, set: ['hemorrhoids'], count: { dx: 1, body: 1 },
@@ -446,7 +633,7 @@ D.CARDS = [
        res: 'El azúcar subió sola. Tú, a escondidas.', expr: 'tired' } },
 
 { id: 'colon', kind: 'risk', group: 'health', acts: [3, 4, 5, 6], needs: ['!ibs'], m: 'ABR', time: '10:15', expr: 'sick', from: 'dra',
-  text: 'Colon irritable. “El estrés se te fue al estómago”, dice la doctora. Cada daily te duele literalmente.',
+  text: 'Colon irritable. “El estrés se te fue al estómago, {n}”, dice la doctora. Cada daily te duele literalmente.',
   A: { t: 'Bajar el estrés: pausas, límites, terapia', fx: { p: -6, e: 8, v: 4 }, st: -10, set: ['ibs', 'ibs_care'], count: { dx: 1, care: 1, bound: 1 },
        res: 'Tu estómago agradeció el primer “no llego a todo”.', expr: 'relief' },
   B: { t: 'Más café y seguir', fx: { c: 3, e: -8 }, st: 8, set: ['ibs'], count: { dx: 1, body: 1 },
@@ -475,14 +662,14 @@ D.CARDS = [
        res: 'El deploy salió perfecto. La cena, helada. Tu pareja, también.', expr: 'stressed' } },
 
 { id: 'pelea', kind: 'risk', group: 'family', acts: [3, 4, 5, 6], weight: 2, needs: ['partner', 'strain>=1'], m: 'JUL', time: '23:10', expr: 'tired', from: 'pareja',
-  text: '“Dices que lo haces por nosotros, pero ya casi no te veo.” Es la tercera vez este mes.',
+  text: '“Dices que lo haces por nosotros, {n}, pero ya casi no te veo.” Es la tercera vez este mes.',
   A: { t: 'Escuchar y acordar horarios', fx: { v: 10, c: -4, e: 2 }, count: { strain: -2, bound: 1 },
        res: 'Acordaron una regla: a las 7 pm, laptop cerrada. Funcionó tres semanas. Ya es algo.', expr: 'relief' },
   B: { t: 'Defenderte: “lo hago por nosotros”', fx: { v: -8, c: 3 }, count: { strain: 2 },
        res: 'Tenías razón. También tenías una pareja que dejó de discutir… y de esperar.', expr: 'stressed' } },
 
 { id: 'terapia-pareja', kind: 'risk', group: 'family', acts: [3, 4, 5, 6], needs: ['partner', 'strain>=3', '!therapy'], m: 'SEP', time: '21:00', expr: 'neutral', from: 'pareja',
-  text: '“Propongo terapia de pareja. No para ganar una discusión: para no perdernos.”',
+  text: '“{n}, propongo terapia de pareja. No para ganar una discusión: para no perdernos.”',
   A: { t: 'Aceptar y agendar la terapia', fx: { p: -8, v: 12, e: -2 }, count: { strain: -3, care: 1 }, set: ['therapy'], unset: ['separated'],
        res: 'Primera sesión: 50 minutos sin pantallas. La terapeuta preguntó cuántos años llevas diciendo “mañana”.', expr: 'relief' },
   B: { t: '“No tengo tiempo ahora”', fx: { c: 4, v: -8 }, count: { strain: 2 },
@@ -510,7 +697,7 @@ D.CARDS = [
        res: 'Mañana siempre es mañana. Los niños no entienden de sprints.', expr: 'tired' } },
 
 { id: 'separacion', kind: 'trigger', needs: ['partner', 'strain>=6', '!separated', '!divorced'], max: 1, m: 'NOV', time: '22:30', expr: 'tired', from: 'pareja',
-  text: '“Me voy unos días a casa de mi familia. Necesito saber si esto es una vida o solo trabajo.”',
+  text: '“{n}, me voy unos días a casa de mi familia. Necesito saber si esto es una vida o solo trabajo.”',
   A: { t: 'Pedir perdón y cambiar de verdad', fx: { v: 10, c: -8, e: -2 }, count: { strain: -3 },
        res: 'Pediste perdón sin “pero”. Y empezaste a cerrar el chat a las 7.', expr: 'tired' },
   B: { t: 'Darle espacio… y seguir trabajando', fx: { c: 5, v: -14 }, set: ['separated'],
@@ -645,10 +832,10 @@ D.CARDS = [
 D.RISK = {
   health: { from: 3, base: 0.30, perAct: 0.03, mods: [['stress>=40', 0.2], ['stress>=60', 0.1], ['ot>=3', 0.1], ['body>=1', 0.1], ['fit', -0.2]] },
   family: { from: 3, base: 0.25, mods: [['strain>=2', 0.2], ['strain>=4', 0.2], ['v<40', 0.1], ['baby', 0.1]] },
-  work:   { from: 2, base: 0.28, perAct: 0.02, mods: [['c<50', 0.15], ['e<40', 0.15], ['pip', 0.15], ['conflict', 0.1]] },
+  work:   { needs: ['!jobless'], from: 2, base: 0.28, perAct: 0.02, mods: [['c<50', 0.15], ['e<40', 0.15], ['pip', 0.15], ['conflict', 0.1], ['overloaded', 0.15], ['mk<35', 0.1]] },
   money:  { from: 2, base: 0.25, mods: [['mortgage', 0.1], ['car_loan', 0.1], ['debt', 0.1], ['p<30', 0.1]] }
 };
-D.RISK_CAP = 2;    // max risk events injected per year
+D.RISK_CAP = [0, 0, 2, 2, 2, 2, 1, 0];    // max risk events injected per year (2025 is already dense with AI anchors)
 D.TRIG_CAP = 2;    // max non-chain triggers per year
 /* chronic conditions: `id` flag = diagnosed, `care` flag = managed */
 D.CONDITIONS = [
@@ -674,18 +861,30 @@ D.ENDINGS = [
     think: '¿Cuánto colchón necesitas antes de arriesgar algo? ¿Qué decisión de plata repetirías… y cuál no?',
     story: 'El banco te mandó un mensaje amable. Tu mamá, otro más amable aún: “¿Necesitas algo, {n}?”.{?mortgage| La cuota de la casa venció igual.|}',
     care: 'Pedir ayuda con la plata también es una habilidad técnica.' },
-  { id: 'ghosteado', over: 'c', title: 'Ghosteado por RRHH', roast: 'Tu perfil dice “Open to work” desde 2023.',
+  { id: 'ghosteado', over: 'c', title: 'Ghostead{o} por RRHH', roast: 'Tu perfil dice “Open to work” desde 2023.',
     think: '¿Quién estaría en tu red si mañana se cae tu trabajo? ¿A quién podrías ayudar hoy?',
     story: 'Mandaste 212 CVs. Recibiste 3 respuestas automáticas y un “gracias por tu interés”. La webcam te vio refrescar el correo a las 3 am.',
     care: 'Tu valor no es tu tasa de respuesta.' },
   { id: 'solo', over: 'v', title: 'Cero Bugs, Cero Invitados', roast: 'Cumpliste todos los sprints. Faltaste a todo lo demás.',
     think: '¿Qué relación estás dejando “para después”? ¿Qué parte de tu carrera vale ese precio?',
-    story: 'Hubo cumpleaños, cenas y una obra de teatro. La webcam tiene los tres recordatorios del calendario. Todos dicen “ocupado”.{?divorced| Y una firma en un juzgado.|}',
+    story: 'Hubo cumpleaños, cenas y una obra de teatro. La webcam tiene los tres recordatorios del calendario. Todos dicen “ocupad{o}”.{?divorced| Y una firma en un juzgado.|}',
     care: 'Las personas también necesitan mantenimiento. Tú, incluido.' },
 
-  { id: 'equilibrista', needs: ['e>=55', 'p>=55', 'c>=55', 'v>=55'], title: 'El Equilibrista', roast: 'Sueldo, salud, carrera y gente. Existes y nadie te cree.',
+  { id: 'equilibrista', needs: ['e>=55', 'p>=55', 'c>=55', 'v>=55'], title: '{?fem|La|El} Equilibrista', roast: 'Sueldo, salud, carrera y gente. Existes y nadie te cree.',
     think: '¿Qué decisión pequeña y repetida te sostuvo? ¿Cómo la volverías hábito en tu vida real?',
-    story: 'Dijiste “no” a tiempo, “sí” a lo importante y negociaste cuando tocaba. La webcam anota: esto no fue suerte… del todo.' },
+    story: 'Dijiste “no” a tiempo, “sí” a lo importante y negociaste cuando tocaba. La webcam anota, {n}: esto no fue suerte… del todo.' },
+  { id: 'salto', needs: ['jumps>=1', 'mk>=56', '!jobless'], title: 'Te Fuiste a Tiempo', roast: 'Mandaste los CVs antes del mal feedback. El mercado ya te esperaba.',
+    think: '¿Cada cuánto miras cuánto paga el mercado por tu perfil? ¿Qué señal te diría que es hora de moverte?',
+    story: 'Mandaste CVs cuando aún te sobraban fuerzas. El siguiente jefe preguntó por tu stack, no por tus “ratitos más”. {?eng>=2|Tu inglés abrió la puerta.|}',
+    care: 'Moverte a tiempo no es deslealtad: es cuidar tu carrera.' },
+  { id: 'ia-reemplazado', needs: ['ai_laid_off', 'jobless'], title: 'Tu Rol Ahora Es un Prompt', roast: 'Tu puesto se llamaba “Software Engineer”. Hoy ya nadie lo publica.',
+    think: '¿Qué parte de tu trabajo es difícil de automatizar? ¿Cómo la harías más visible y más tuya?',
+    story: 'Te lo dijeron en 8 minutos, por videollamada. La vacante se republicó como “AI Engineer”, con inglés avanzado. La webcam solo te ve refrescar el correo.',
+    care: 'Un puesto se automatiza; tú no. Sigue aprendiendo y pide ayuda.' },
+  { id: 'open-to-work', needs: ['jobless'], title: 'Open to Work (Desde Hace Meses)', roast: 'Tu CV es el mismo de siempre. El mercado, ya no.',
+    think: '¿Cuántos meses de ahorro te darían tranquilidad? ¿A quién llamarías hoy si el mercado se cierra?',
+    story: 'Cientos de postulaciones, pocas respuestas. {?eng<2|Casi todas pedían inglés avanzado.|Casi todas pedían un stack que no usabas.} La webcam te acompaña a refrescar el correo.',
+    care: 'Quedarte sin trabajo no es quedarte sin valor. Pide apoyo.' },
   { id: 'custodia', needs: ['divorced'], title: 'Domingos Alternados', roast: 'Entregaste todos los proyectos. Menos el de tu casa.',
     think: '¿Qué señal en casa ignoraste primero? ¿Qué horario protegerías desde hoy?',
     story: '{?baby|Tu peque tiene dos cuartos y un calendario de colores. |}La casa quedó dividida y la laptop, intacta. “Lo hago por ustedes” no reemplaza estar.',
@@ -702,15 +901,30 @@ D.ENDINGS = [
     think: '¿Qué compromiso firmarías otra vez y cuál esperarías a tener un colchón?',
     story: 'Casa, auto, tarjeta: cada débito automático te recuerda que “estabilidad” y “deuda” pueden compartir calendario. Duermes menos de lo que cobras.',
     care: 'Un colchón de ahorro también es una decisión de carrera.' },
-  { id: 'dolares', needs: ['offer', 'p>=55'], title: 'Freelancer en Dólares', roast: 'Cobras en USD. La ansiedad también cotiza.',
+  { id: 'dolares', needs: ['offer', 'eng>=2', 'p>=55'], title: 'Freelancer en Dólares', roast: 'Cobras en USD. La ansiedad también cotiza.',
     think: '¿Qué riesgo calculado tomaste y cuál fue su costo oculto? ¿Estabas preparad{o} para pagarlo?',
     story: 'Rodrigo tenía razón. Lo que no te dijo es que el soporte técnico, la factura y el dentista ahora son tu departamento.' },
   { id: 'mentor', needs: ['mentored', 'c>=50', 'v>=45'], title: 'Mentor de Alguien', roast: 'Ahora tú dices: “quédate 30 minutos, te explico”.',
     think: '¿Quién te enseñó algo que cambió tu carrera? ¿A quién podrías enseñarle algo esta semana?',
-    story: 'Tomás depuró su primer bug sin ti. Miró a la cámara, sonrió y dijo “gracias”. Tú recordaste 2019, con luz de tarde.' },
+    story: 'Alguien a quien le diste una tarde consiguió su primera oferta en pleno invierno de juniors. Te escribió “gracias”. Tú recordaste 2019, con luz de tarde.' },
+  { id: 'mute-parental', needs: ['baby', 'v>=55'], title: 'Cámara Apagada, Corazón Encendido', roast: 'Tu mejor release fue un “te quiero” con el micro en mute.',
+    think: '¿Cómo se ve una carrera sostenible con familia? ¿Qué límites protegen lo que más importa?',
+    story: 'Tu peque aprendió a decir “reunión” antes que “agua”. Cuando cierras la laptop, ya sabe que llegaste.' },
   { id: 'techlead', needs: ['c>=70', 'p<40'], title: 'Tech Lead sin Aumento', roast: 'Tienes el título. El banco no lo acepta.',
     think: '¿Cuándo conviene aceptar más responsabilidad y cuándo negociar antes de decir que sí?',
     story: 'Lideras a siete personas, tres sistemas y un calendario inhumano. Tu perfil dice “Tech Lead”. Tu estado de cuenta dice “¿quién?”.' },
+  { id: 'sin-ingles', needs: ['eng<2', 'wall>=2'], title: 'Sin Inglés, Sin Salida', roast: 'Tu CV era bueno. Las vacantes buenas, en inglés.',
+    think: '¿Qué habilidad dejaste “para después” que hoy te cierra una puerta? ¿Cuánto tardarías en empezarla?',
+    story: 'Cada vacante buena decía “advanced English”. Hiciste la cuenta: 18 meses. Los habrías necesitado en 2019, cuando eran baratos y te sobraba tiempo.',
+    care: 'Nunca es tarde para empezar; solo es más caro. Empieza hoy.' },
+  { id: 'ia-retitulado', needs: ['ai_retitled', 'p<50', '!jobless_ever'], title: 'AI Engineer (Mismo Sueldo)', roast: 'Cambió el título en LinkedIn. El sueldo se quedó con el anterior.',
+    think: '¿Qué cambia cuando cambia el título pero no la banda? ¿Qué pedirías antes de aceptar más alcance?',
+    story: 'Ya no escribes código: supervisas el de un robot y apagas lo que otros mergean. Tu perfil dice “AI Engineer”. Tu estado de cuenta, “¿quién?”.',
+    care: 'Un título nuevo sin banda nueva es más trabajo, no un ascenso.' },
+  { id: 'una-empresa', needs: ['tenure>=3', 'mk<45', 'c>=40', '!jobless'], title: 'Tech Lead de Una Sola Empresa', roast: 'En tu empresa eres referente. En el mercado, un mid con stack de 2019.',
+    think: '¿Cuándo comparaste por última vez tu sueldo y tus habilidades con el mercado? ¿Qué aprenderías esta semana?',
+    story: 'Tu empresa no sabría vivir sin ti. El mercado, en cambio, no sabe que existes: tu stack tiene años y tu sueldo se quedó en 2019.',
+    care: 'Mirar el mercado de vez en cuando no es traición: es mantenimiento.' },
   { id: 'fantasma', needs: ['e<40'], title: 'Fantasma del Chat', roast: 'Siempre en línea. Nunca presente.',
     think: '¿Estar siempre disponible es compromiso o miedo? ¿Qué pasaría si respondes mañana?',
     story: 'Respondes en 40 segundos y a las 2 am. Tu círculo verde brilla más que tú. La webcam recuerda tu risa; ya casi no la usa.' },
@@ -721,18 +935,15 @@ D.ENDINGS = [
     think: '¿Cuántos meses de ahorro te darían tranquilidad? ¿A quién llamarías hoy si te quedas sin trabajo?',
     story: 'Aprendiste lo que cuesta un mes sin ingresos y lo que vale una red de verdad. La webcam recuerda el día que volvió el primer depósito.',
     care: 'Perder un trabajo no es perder tu valor. Es un incidente que se resuelve con apoyo.' },
-  { id: 'mute-parental', needs: ['baby', 'v>=55'], title: 'Cámara Apagada, Corazón Encendido', roast: 'Tu mejor release fue un “te quiero” con el micro en mute.',
-    think: '¿Cómo se ve una carrera sostenible con familia? ¿Qué límites protegen lo que más importa?',
-    story: 'Tu peque aprendió a decir “reunión” antes que “agua”. Cuando cierras la laptop, ya sabe que llegaste.' },
   { id: 'vibecoder', special: true, needs: ['vibe', 'c>=45'], title: 'Vibecoder del Sábado', roast: 'Convertiste tu vida en un juego. Ahora la gente lo está jugando.',
     think: '¿Qué proyecto propio construirías para mostrar lo que sabes? ¿Qué te frena de empezar?',
     story: 'El sábado 17 abriste la laptop y la cámara se encendió. Escribiste tu historia en 30 horas. Por una vez, el jefe eras tú.' },
-  { id: 'caminante', special: true, needs: ['walk', 'v>=50'], title: 'El que Cerró la Laptop', roast: 'Salió el sol. El deploy pudo esperar.',
+  { id: 'caminante', special: true, needs: ['walk', 'v>=50'], title: '{?fem|La|El} que Cerró la Laptop', roast: 'Salió el sol. El deploy pudo esperar.',
     think: 'Descansar también es una decisión técnica: ¿qué dejarías de hacer para recuperar energía?',
     story: 'Cerraste la tapa y la webcam se apagó por primera vez en 7 años. Afuera, Lima olía a pan caliente, bocinazos y garúa.' },
   { id: 'promedio', default: true, title: 'Dev Promedio (Sobrevivió)', roast: 'Llegaste a 2026. Eso ya es un logro.',
     think: 'Llegar ya cuenta. ¿Qué decisión cambiarías para llegar con más energía y más opciones?',
-    story: 'No ganaste nada espectacular ni lo perdiste todo. La webcam registra a alguien que sigue aquí, y eso es más raro de lo que parece.' }
+    story: 'No ganaste nada espectacular ni lo perdiste todo. La webcam registra a {n}, que sigue aquí, y eso es más raro de lo que parece.' }
 ];
 
 /* ---------- "lo que la webcam recuerda": shown on the ending + share card ---------- */
@@ -749,6 +960,9 @@ D.RECAP = [
   { id: 'missed', needs: ['missed>=1'], icon: '🏠', text: 'Momentos en casa que te perdiste: {#missed}' },
   { id: 'loans',  needs: ['loans>=1'],  icon: '🏦', text: 'Compromisos con el banco que firmaste: {#loans}' },
   { id: 'unemp',  needs: ['unemp>=1'],  icon: '📭', text: 'Meses de angustia sin sueldo: {#unemp}' },
+  { id: 'jumps',  needs: ['jumps>=1'],  icon: '🧳', text: 'Veces que empezaste en una empresa nueva: {#jumps}' },
+  { id: 'wall',   needs: ['wall>=1'],   icon: '🔒', text: 'Puertas del mercado que se te cerraron: {#wall}' },
+  { id: 'eng',    needs: ['eng>=1'],    icon: '🗣️', text: 'Niveles de inglés que lograste: {#eng}' },
   { id: 'yes',    needs: ['yes>=3'],    icon: '🙂', text: 'Veces que dijiste “sí” sin preguntar el precio: {#yes}' }
 ];
 

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B0E1A">
 <title>Software Engineer LIFE — cámara encendida</title>
-<meta name="description" content="Eres la webcam de un dev en Lima, 2019 → 2026. Elige A o B y descubre qué final te sale. Un juego para celular de 4 minutos. #HackTheAndes">
+<meta name="description" content="Pon tu nombre, elige tu personaje y vive una vida de dev en Lima, 2019 → 2026. Elige A o B y descubre qué final te sale. Un juego para celular de 5 minutos. #HackTheAndes">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Software Engineer LIFE — cámara encendida">
 <meta property="og:description" content="Eres la webcam de un dev en Lima, 2019 → 2026. Pandemia, horas extra, recortes, ascenso sin aumento… ¿Qué final te sale? #HackTheAndes">
@@ -17,7 +17,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="stylesheet" href="css/game.css?v=5">
+<link rel="stylesheet" href="css/game.css?v=7">
 </head>
 <body>
 <div class="rotate" aria-hidden="true">Gira tu teléfono ↻<br>(este juego es vertical)</div>
@@ -27,7 +27,7 @@
   <aside class="info" id="info" aria-label="Información">
     <div class="eyebrow">#HackTheAndes · Vibecodea un juego</div>
     <h1>Software Engineer LIFE<em>cámara encendida</em></h1>
-    <p>Un juego pensado para el celular: 4 minutos, una vida de dev en Lima (2019 → 2026) y dos opciones por escena. Escanea el código o abre este enlace en tu teléfono.</p>
+    <p>Un juego pensado para el celular: 5 minutos, una vida de dev en Lima (2019 → 2026) y dos opciones por escena. Escanea el código o abre este enlace en tu teléfono.</p>
     <div class="qr" id="qr" aria-label="Código QR"></div>
     <div class="url" id="urlText"></div>
     <ul>
@@ -54,7 +54,7 @@
           <div class="tag"><i class="dot"></i>Cámara lista · 720p</div>
           <h1><span>Software</span><span>Engineer</span><span class="l">LIFE</span></h1>
           <div class="sub">Cámara encendida.</div>
-          <div class="sub2">Tú eres la webcam. Ves una vida de dev en Lima, 2019 → 2026, y decides por ella. ~4 min.</div>
+          <div class="sub2">Pon tu nombre, elige tu personaje y vive una vida de dev en Lima, 2019 → 2026. La webcam lo ve todo. ~5 min.</div>
           <div class="challenge" id="challenge"></div>
           <div class="titlebtns">
             <button class="cta" id="btnStart"><i class="dot"></i>Encender cámara</button>
@@ -64,12 +64,12 @@
         </section>
 
         <!-- PICK -->
-        <section class="scr" id="s-pick" aria-label="Elegir persona">
-          <h2>¿A quién vas a ver?</h2>
-          <p class="s">Octubre 2019 · Lima. Egresado/a de Ingeniería de Software (5 años de carrera), 3 meses de prueba sin sueldo… y hoy firma contrato.</p>
-          <div class="tiles" id="tiles"></div>
-          <div class="namebox"><label for="name">Su nombre</label><input id="name" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Camila"></div>
-          <button class="cta" id="btnGo"><i class="dot"></i>Continuar</button>
+        <section class="scr" id="s-pick" aria-label="Crear tu personaje">
+          <h2>¿Quién eres?</h2>
+          <p class="s">Octubre 2019 · Lima. Acabas de egresar de Ingeniería de Software (5 años de carrera). Tres meses de prueba sin sueldo… y hoy firmas contrato. La webcam te seguirá hasta 2026.</p>
+          <div class="tiles" id="tiles" role="radiogroup" aria-label="Elige tu personaje"></div>
+          <div class="namebox"><label for="name">Tu nombre</label><input id="name" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="go" placeholder="Camila"><small>Así te llamarán tu jefe, tu mamá y la webcam.</small></div>
+          <button class="cta" id="btnGo"><i class="dot"></i><span id="goTxt">Encender cámara</span></button>
         </section>
 
         <!-- PLAY -->
@@ -91,6 +91,7 @@
               <div class="hud" id="hud"></div>
               <div class="tl"><span class="chip" id="yr">OCT 2019</span><div class="rail"><b id="railb"></b><i id="raili"></i></div><small>2026</small></div>
             </div>
+            <div class="ntag" id="ntag" aria-hidden="true"><svg class="mi on" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/></svg><svg class="mi off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zM5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16"/></svg><b id="ntagName"></b><small>(Tú)</small></div>
             <div class="ticker" id="ticker" hidden><span id="tickerTx"></span></div>
             <div class="amb" id="amb" hidden></div>
           </div>
@@ -103,7 +104,7 @@
 
         <!-- END -->
         <section class="scr" id="s-end" aria-label="Tu final">
-          <div class="kick"><span>Tu final</span><span>Finales <b id="coll">1/19</b></span></div>
+          <div class="kick"><span id="eKick">Tu final</span><span>Finales <b id="coll">1/25</b></span></div>
           <h2 id="eTitle"></h2>
           <p class="roast" id="eRoast"></p>
           <p class="epi" id="eEpi"></p>
@@ -133,10 +134,10 @@
 
 <noscript><p style="position:fixed;inset:0;background:#0B0E1A;color:#fff;display:grid;place-items:center;padding:30px;text-align:center;font:600 18px system-ui">Este juego necesita JavaScript. Actívalo y vuelve a intentar.</p></noscript>
 
-<script src="js/data.js?v=5"></script>
-<script src="js/engine.js?v=5"></script>
-<script src="js/render.js?v=5"></script>
-<script src="js/audio.js?v=5"></script>
-<script src="js/app.js?v=5"></script>
+<script src="js/data.js?v=7"></script>
+<script src="js/engine.js?v=7"></script>
+<script src="js/render.js?v=7"></script>
+<script src="js/audio.js?v=7"></script>
+<script src="js/app.js?v=7"></script>
 </body>
 </html>

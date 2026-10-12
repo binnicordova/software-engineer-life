@@ -32,22 +32,35 @@ function createGame(opts) {
   const g = opts.gender === 'm' ? 'm' : 'f';
   const name = (opts.name || (g === 'f' ? 'Camila' : 'Diego')).slice(0, 14);
   const R = D.RULES;
+  const M = R.market;
   const S = {
     seed, g, name,
     e: R.start.e, p: R.start.p, c: R.start.c, v: R.start.v, stress: R.start.stress,
-    flags: {}, cnt: { ot: 0, yes: 0, extra: 0, body: 0, learn: 0, cam: 0, bound: 0, raises: 0, strain: 0, dx: 0, loans: 0, missed: 0, unemp: 0, care: 0 },
+    mk: M.start,                     // hidden: how current your skills/salary look to the MARKET (Carrera = standing inside your company)
+    jobAct: 0,                       // act in which the current job started (tenure = act − jobAct)
+    flags: {}, flagAct: {},          // flagAct[f] = act in which flag f was set → `f_ago` conditions
+    cnt: { ot: 0, yes: 0, extra: 0, body: 0, learn: 0, cam: 0, bound: 0, raises: 0, strain: 0, dx: 0, loans: 0, missed: 0, unemp: 0, care: 0, eng: 0, jumps: 0, wall: 0 },
     act: -1, actOt: 0, actTrig: 0, cursor: -1, queue: [], poolOrder: [], seen: {}, trig: {}, trigAct: {},
     history: [], over: null, current: null, played: 0
   };
+  const setFlag = f => { if (!S.flags[f]) S.flagAct[f] = S.act; S.flags[f] = 1; };
+  const unsetFlag = f => { delete S.flags[f]; delete S.flagAct[f]; };
 
   /* ---------- conditions & templates ---------- */
   function lookup(n) {
     if (n === 'e' || n === 'p' || n === 'c' || n === 'v') return S[n];
     if (n === 'stress') return S.stress;
     if (n === 'act') return S.act;
+    if (n === 'mk') return S.mk;
+    if (n === 'fem') return g === 'f' ? 1 : 0;   // {?fem|La|El}: text that depends on the character's gender
+    if (n === 'tenure') return S.act - S.jobAct;
+    if (n.length > 4 && n.slice(-4) === '_ago') { const f = n.slice(0, -4); return S.flags[f] ? S.act - (S.flagAct[f] != null ? S.flagAct[f] : S.act) : -1; }   // years since a flag was set (−1 = not set)
     if (n in S.cnt) return S.cnt[n];
     return S.flags[n] ? 1 : 0;
   }
+  /* after a job change the cast changes too: same story, new company */
+  const JN = D.JUMP_NAMES || {}, JN_RE = Object.keys(JN).length ? new RegExp(Object.keys(JN).join('|'), 'g') : null;
+  const rename = s => (JN_RE && S.cnt.jumps >= 1 ? s.replace(JN_RE, m => JN[m]) : s);
   function test(cond) {
     const m = /^(!)?([a-z_0-9]+)(?:(>=|<=|==|>|<)(-?\d+))?$/.exec(String(cond).trim());
     if (!m) throw new Error('bad condition: ' + cond);
@@ -62,7 +75,7 @@ function createGame(opts) {
     if (typeof s !== 'string') return s;
     s = s.replace(/\{\?([^|}]+)\|([^|}]*)(?:\|([^}]*))?\}/g, (_, c, a, b) => (test(c) ? a : (b || '')));
     s = s.replace(/\{#([a-z_]+)\}/g, (_, k) => lookup(k));
-    return s.replace(/\{n\}/g, esc(S.name)).replace(/\{o\}/g, g === 'f' ? 'a' : 'o');
+    return rename(s).replace(/\{n\}/g, esc(S.name)).replace(/\{o\}/g, g === 'f' ? 'a' : 'o');
   }
   function chance(r) {
     let p = r.base;
@@ -85,7 +98,15 @@ function createGame(opts) {
     const regen = Math.max(2, Math.round(R.regenBase - S.stress / 10));
     const chE = ch.n * CH.e, chP = ch.n * CH.p + ch.m * CH.care;
     const absence = S.actOt * R.absence;
-    S.p = clamp(S.p - cost - chP); S.e = clamp(S.e + regen - chE); S.v = clamp(S.v - absence - (R.lifeDrain || 0)); S.stress = clamp(S.stress - R.stressDecay);
+    // the market keeps moving: every year costs vigencia, and staying in the same job costs more (comfort = obsolescence); from 2025 the stack changes even faster
+    const ten = S.act - S.jobAct;
+    let mkLoss = M.decay;
+    if (!F.jobless) { if (ten >= 3) mkLoss += M.drag3; if (ten >= 5) mkLoss += M.drag5; }
+    if (D.ACTS[S.act].year >= 2025) mkLoss += M.ai;
+    S.mk = clamp(S.mk - mkLoss);
+    // extra work with no raise, and CVs sent at night, both come out of Energía every single year
+    const workE = (F.overloaded ? R.overloadE || 0 : 0) + (F.searching ? R.searchE || 0 : 0);
+    S.p = clamp(S.p - cost - chP); S.e = clamp(S.e + regen - chE - workE); S.v = clamp(S.v - absence - (R.lifeDrain || 0)); S.stress = clamp(S.stress - R.stressDecay);
     // family tension: a partner who gets the leftovers (burned-out, absent, always on) wears down; a healthy home or therapy eases it
     if ((F.partner || F.baby) && !F.divorced) {
       if (S.stress >= (R.strainStress || 50)) S.cnt.strain++;
@@ -97,7 +118,7 @@ function createGame(opts) {
     }
     const dead = KEYS.find(x => S[x] <= 0);
     if (dead) S.over = dead;
-    return { cost, regen, absence: absence + (R.lifeDrain || 0), health: { e: chE, p: chP } };
+    return { cost, regen, absence: absence + (R.lifeDrain || 0), health: { e: chE, p: chP }, work: workE, market: { loss: mkLoss, tenure: ten, show: !F.jobless && ten >= 3 && mkLoss >= 5 } };
   }
   function startAct(i) {
     S.act = i;
@@ -120,7 +141,7 @@ function createGame(opts) {
     for (let x = order.length - 1; x > 0; x--) { const y = Math.floor(rng() * (x + 1)); const t = order[x]; order[x] = order[y]; order[y] = t; }
     for (const gname of order) {
       const cfg = RK[gname], roll = rng(), pickU = rng();
-      if (inj.length >= (D.RISK_CAP || 2)) continue;
+      if (inj.length >= (Array.isArray(D.RISK_CAP) ? D.RISK_CAP[i] : (D.RISK_CAP || 2))) continue;
       if (i < cfg.from || (cfg.to != null && i > cfg.to) || !ok(cfg.needs)) continue;
       let pr = cfg.base + (cfg.perAct || 0) * Math.max(0, i - cfg.from);
       (cfg.mods || []).forEach(([cnd, add]) => { if (test(cnd)) pr += add; });
@@ -202,13 +223,14 @@ function createGame(opts) {
   const NPC = D.NPC;
   function resolveFrom(f) {
     const n = NPC[f] || NPC.sistema;
-    return { key: f, name: n.name, av: n.av, col: n.col, app: D.APPS[n.app] || '', appKey: n.app };
+    const nm = rename(n.name);
+    return { key: f, name: nm, av: nm !== n.name ? nm.charAt(0) : n.av, col: n.col, app: D.APPS[n.app] || '', appKey: n.app };
   }
   function deliver(c) {
     S.seen[c.id] = 1;
     if (c.kind === 'trigger') { S.trig[c.id] = (S.trig[c.id] || 0) + 1; S.trigAct[c.id] = S.act; if (!c.chain) S.actTrig++; }
     const rc = resolve(c);
-    if (rc.enter && rc.enter.set) rc.enter.set.forEach(f => { S.flags[f] = 1; });
+    if (rc.enter && rc.enter.set) rc.enter.set.forEach(setFlag);
     const card = Object.assign({}, rc, { text: tpl(rc.text), from: resolveFrom(rc.from) });
     ['A', 'B'].forEach(k => { if (rc[k]) card[k] = Object.assign({}, rc[k], { t: tpl(rc[k].t) }); });
     if (rc.btn) card.btn = tpl(rc.btn);
@@ -247,7 +269,8 @@ function createGame(opts) {
     const op = c.kind === 'fate' ? c : c[k];
     let out = op, win = null;
     if (op.roll) {
-      win = rand01(seed, c.id + ':' + k) < chance(op.roll);
+      const attempt = c.kind === 'trigger' ? (S.trig[c.id] || 1) : 1;   // a retried trigger (job search) gets a fresh, independent draw; first attempts keep their old keys
+      win = rand01(seed, c.id + ':' + k + (attempt > 1 ? ':' + attempt : '')) < chance(op.roll);
       out = Object.assign({}, op, win ? op.win : op.lose);
     }
     const before = { e: S.e, p: S.p, c: S.c, v: S.v };
@@ -255,10 +278,15 @@ function createGame(opts) {
     KEYS.forEach(x => { let d = fx[x] || 0; if (d > 0) d = Math.round(d * R.gain); if (d) S[x] = clamp(S[x] + d); });
     S.stress = clamp(S.stress + (out.st || 0) + Math.round(Math.max(0, -(fx.e || 0)) * R.stressFromEnergy));
     if (out.count && out.count.ot) S.actOt += out.count.ot;
-    (out.set || []).forEach(f => { S.flags[f] = 1; });
-    (out.unset || []).forEach(f => { delete S.flags[f]; });
+    const wasJobless = !!S.flags.jobless;
+    (out.set || []).forEach(setFlag);
+    (out.unset || []).forEach(unsetFlag);
     Object.entries(out.count || {}).forEach(([n, v]) => { S.cnt[n] = (S.cnt[n] || 0) + v; });
     if (out.raise) S.cnt.raises += out.raise;
+    if (out.mk) S.mk = clamp(S.mk + out.mk);
+    // a new job wipes the old job's baggage (overload, PIP, feud…) and restarts the tenure clock; losing the job ends the overload and the night search
+    if (out.newjob) { S.jobAct = S.act; (D.JOB_FLAGS || []).forEach(unsetFlag); }
+    else if (S.flags.jobless && !wasJobless) ['overloaded', 'searching'].forEach(unsetFlag);
     if (out.count && out.count.ot && (S.flags.partner || S.flags.baby) && !S.flags.divorced) S.cnt.strain += 1;   // every late night is felt at home
     S.cnt.strain = clamp(S.cnt.strain, 0, 10);
     const deltas = {};
@@ -279,12 +307,21 @@ function createGame(opts) {
     for (let i = 0; i < n; i++) out.push(h[Math.round(i * (h.length - 1) / (n - 1))]);
     return out;
   }
+  /* two different answers to "what level are you?": the one your company gives you (Carrera) and the one the market gives you (vigencia) */
+  const pickBy = (list, v) => (list.find(x => v >= x.min) || list[list.length - 1]).label;
+  function levels() {
+    const role = S.flags.jobless ? null : (S.flags.unpaid_promo && S.c >= 55 ? 'Tech Lead' : pickBy(D.ROLES, S.c));
+    return { role, market: pickBy(D.LEVELS, S.mk) };
+  }
   function recap() {
     const lines = D.RECAP.filter(r => r.always || ok(r.needs));
     const always = lines.filter(r => r.always);
     const rest = lines.filter(r => !r.always)
       .map((r, i) => ({ r, n: S.cnt[r.id] || 0, i })).sort((a, b) => b.n - a.n || a.i - b.i).slice(0, 2).map(x => x.r);
-    return always.concat(rest).map(r => ({ icon: r.icon, text: tpl(r.text) }));
+    const L = levels();
+    const lvl = { icon: '📊', text: tpl(L.role ? `Tu empresa: ${L.role} · El mercado: ${L.market}` : `Sin empresa · El mercado te ve: ${L.market}`) };
+    const line = r => ({ icon: r.icon, text: tpl(r.text) });
+    return always.map(line).concat([lvl], rest.map(line));   // the share card shows the first 3 lines: raises → company vs. market → your top habit
   }
   function finish() {
     const E = D.ENDINGS;
@@ -297,6 +334,7 @@ function createGame(opts) {
       over: S.over, kind: S.over ? 'over' : (end.special ? 'special' : end.default ? 'default' : 'state'),
       epilogue: S.flags.vibe ? 'vibe' : S.flags.walk ? 'walk' : null,
       recap: recap(), meters: { e: S.e, p: S.p, c: S.c, v: S.v }, frames: pickFrames(4),
+      market: Object.assign({ mk: S.mk, tenure: S.act - S.jobAct }, levels()),
       cnt: Object.assign({}, S.cnt), played: S.played, seed
     };
   }
@@ -305,10 +343,10 @@ function createGame(opts) {
   function expectedFx(card, key) {
     const op = card.kind === 'fate' ? card : card[key];
     const sc = d => (d > 0 ? Math.round(d * R.gain) : d);
-    const one = o => { const r = { st: (o.st || 0) + Math.round(Math.max(0, -((o.fx || {}).e || 0)) * R.stressFromEnergy) }; KEYS.forEach(x => { r[x] = sc((o.fx || {})[x] || 0); }); return r; };
+    const one = o => { const r = { st: (o.st || 0) + Math.round(Math.max(0, -((o.fx || {}).e || 0)) * R.stressFromEnergy), mk: o.mk || 0, eng: (o.count && o.count.eng) || 0, job: o.newjob ? 1 : 0 }; KEYS.forEach(x => { r[x] = sc((o.fx || {})[x] || 0); }); return r; };
     if (!op.roll) return one(op);
     const p = chance(op.roll), w = one(op.win), l = one(op.lose), out = {};
-    ['st'].concat(KEYS).forEach(x => { out[x] = p * w[x] + (1 - p) * l[x]; });
+    ['st', 'mk', 'eng', 'job'].concat(KEYS).forEach(x => { out[x] = p * w[x] + (1 - p) * l[x]; });
     return out;
   }
 

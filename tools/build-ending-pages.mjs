@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 const D = require('../public/js/data.js');
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const site = (process.env.SITE_URL || '').replace(/\/$/, '');
-const neutral = s => s.replace(/\{o\}/g, 'o/a').replace(/\{n\}/g, 'tú').replace(/\{[?#][^}]*\}/g, '');
+const neutral = s => s.replace(/\{\?fem\|([^|}]*)\|([^}]*)\}/g, (_, a, b) => `${b}/${a}`).replace(/\{o\}/g, 'o/a').replace(/\{n\}/g, 'tú').replace(/\{[?#][^}]*\}/g, '');
 const attr = s => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 for (const e of D.ENDINGS) {

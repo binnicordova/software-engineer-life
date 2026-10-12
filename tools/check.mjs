@@ -11,7 +11,9 @@ const COND = /^(!)?([a-z_0-9]+)(?:(>=|<=|==|>|<)(-?\d+))?$/;
 const STATS = new Set(['e', 'p', 'c', 'v']);
 const EXPR = new Set(['neutral', 'happy', 'tired', 'stressed', 'shock', 'sick', 'relief']);
 const AMB = new Set(['mom', 'lag', 'camotero', 'drill', 'baby', 'kid', 'apagon']);
-const COUNTERS = new Set(['ot', 'yes', 'extra', 'body', 'learn', 'cam', 'bound', 'raises', 'strain', 'dx', 'loans', 'missed', 'unemp', 'care']);
+const COUNTERS = new Set(['ot', 'yes', 'extra', 'body', 'learn', 'cam', 'bound', 'raises', 'strain', 'dx', 'loans', 'missed', 'unemp', 'care', 'eng', 'jumps', 'wall']);
+const DERIVED = new Set(['stress', 'act', 'mk', 'tenure', 'fem']);   // engine-computed values usable in conditions
+const OUT_KEYS = new Set(['fx', 'st', 'mk', 'set', 'unset', 'count', 'raise', 'newjob', 'res', 'expr', 'addProps', 'roll', 'win', 'lose', 't']);
 
 // flags that are ever set, to catch conditions on flags nobody sets
 const setFlags = new Set();
@@ -22,12 +24,15 @@ const condOk = (cond, where) => {
   const m = COND.exec(cond);
   if (!m) return err(`${where}: bad condition "${cond}"`);
   const n = m[2];
-  if (STATS.has(n) || n === 'stress' || n === 'act' || COUNTERS.has(n)) return;
-  if (!setFlags.has(n)) err(`${where}: condition uses flag "${n}" that nothing sets`);
+  if (STATS.has(n) || DERIVED.has(n) || COUNTERS.has(n)) return;
+  const base = n.endsWith('_ago') ? n.slice(0, -4) : n;    // <flag>_ago = years since that flag was set
+  if (!setFlags.has(base)) err(`${where}: condition uses flag "${base}" that nothing sets`);
 };
 const textOk = (s, where, max) => {
   if (typeof s !== 'string') return;
-  if (s.length > max) warn(`${where}: ${s.length} chars (> ${max}): ${s.slice(0, 50)}…`);
+  // worst-case RENDERED length: an inline {?cond|a|b} shows only one branch, tokens show ~a name / a number
+  const shown = s.replace(/\{\?[^|}]+\|([^|}]*)(?:\|([^}]*))?\}/g, (_, a, b) => (a.length >= (b || '').length ? a : (b || ''))).replace(/\{n\}/g, 'x'.repeat(14)).replace(/\{o\}/g, 'a').replace(/\{#[a-z_]+\}/g, '12');
+  if (shown.length > max) warn(`${where}: ${shown.length} chars (> ${max}): ${shown.slice(0, 50)}…`);
   for (const m of s.matchAll(/\{\?([^|}]+)\|/g)) condOk(m[1], where);
   const stripped = s.replace(/\{\?[^}]*\}/g, '').replace(/\{(n|o|#[a-z_]+)\}/g, '');
   if (/[{}]/.test(stripped)) err(`${where}: stray brace in "${s}"`);
@@ -36,6 +41,9 @@ const fxOk = (fx, where) => Object.entries(fx || {}).forEach(([k, v]) => { if (!
 const outOk = (o, where) => {
   if (!o) return err(`${where}: missing`);
   fxOk(o.fx, where);
+  Object.keys(o).forEach(k => { if (!OUT_KEYS.has(k) && !['from', 'enter'].includes(k)) err(`${where}: unknown outcome key "${k}"`); });
+  if (o.mk != null && (typeof o.mk !== 'number' || Math.abs(o.mk) > 20)) warn(`${where}: odd mk ${o.mk}`);
+  if (o.newjob && !(o.count && o.count.jumps)) warn(`${where}: newjob without count.jumps (NPCs/tenure won't line up)`);
   if (o.expr && !EXPR.has(o.expr)) err(`${where}: unknown expr ${o.expr}`);
   Object.keys(o.count || {}).forEach(k => { if (!COUNTERS.has(k)) err(`${where}: unknown counter ${k}`); });
   textOk(o.res, where + '.res', 150);
@@ -75,6 +83,7 @@ for (const c of D.CARDS) {
   });
 }
 D.ENDINGS.forEach(e => { if (!e.think) err(`ending ${e.id}: missing think (Para pensar prompt)`); textOk(e.think, `ending ${e.id}.think`, 130); (e.needs || []).forEach(n => condOk(n, `ending ${e.id}`)); textOk(e.title, `ending ${e.id}.title`, 40); textOk(e.roast, `ending ${e.id}.roast`, 90); textOk(e.story, `ending ${e.id}.story`, 170); });
+[['ROLES', D.ROLES], ['LEVELS', D.LEVELS]].forEach(([n, L]) => { if (!L || !L.length || L[L.length - 1].min !== 0 || L.some((x, i) => i && x.min >= L[i - 1].min)) err(`D.${n}: must be descending by min and end at 0`); });
 D.ACTS.forEach((a, i) => { textOk(a.line, `act ${i}.line`, 120); if (a.pool > D.CARDS.filter(c => c.kind === 'pool' && c.acts.includes(i)).length) warn(`act ${i}: pool larger than candidates`); });
 D.RECAP.forEach(r => { (r.needs || []).forEach(n => condOk(n, `recap ${r.id}`)); });
 
@@ -88,6 +97,8 @@ for (const flagsOn of [false, true]) {
 }
 
 const perAct = D.ACTS.map((a, i) => ({ y: a.year, anchors: D.CARDS.filter(c => c.act === i && c.kind !== 'pool' && !c.last).length, pool: D.CARDS.filter(c => c.kind === 'pool' && c.acts.includes(i)).length, risk: D.CARDS.filter(c => c.kind === 'risk' && c.acts.includes(i)).length, draw: a.pool }));
+const named = D.CARDS.filter(c => JSON.stringify(c).includes('{n}')).length;
+console.log(`name {n} appears in ${named}/${D.CARDS.length} scenes (${Math.round(100 * named / D.CARDS.length)}%)`);
 console.log('cards:', D.CARDS.length, '| endings:', D.ENDINGS.length, '| flags set:', [...setFlags].length);
 console.table(perAct);
 warns.forEach(w => console.log('warn ', w));

@@ -66,7 +66,7 @@ The game now exists: **[`../public/index.html`](../public/index.html)** (run not
 | Mostly generic life events | **Life after year 3** (+29 scenes, +4 endings): chronic conditions that drain Energía/Plata every year unless treated, family strain → separation → divorce, work reviews / conflicts / forced exits → months without income, and yearly commitments (rent, car, mortgage, debt) | A career isn’t only meters going up and down: 3 years of a chair, long hours and loans leave a bill. Rolled per year from your own state (`D.RISK`), so overwork meets more of it |
 | Fixed card order inside an act | Contract/pandemic/layoff cards **open their act**; month labels only move forward | Random pool cards were appearing before “Hoy firma” |
 
-Balance (4,000 bot runs each, `node tools/sim.mjs`): random player reaches 2026 ~52 % of the time; pure career-grind 0 % (burnout); pure “people first” ~10 % (ghosteado); the overworker bot gets divorced ~45 % of the time; all 19 endings reachable.
+Balance (4,000 bot runs each, `node tools/sim.mjs`): random player reaches 2026 ~40 % of the time; pure career-grind 0 % (burnout); pure “people first” ~8 % (ghosteado); the overworker bot gets divorced ~39 % of the time; a *market-aware* bot (studies English, leaves in time) reaches 2026 100 % of the time while a *comfortable stayer* ends unemployed ~35 % of the time; all 25 endings reachable.
 
 ## Documents
 

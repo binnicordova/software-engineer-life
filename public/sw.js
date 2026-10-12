@@ -1,6 +1,6 @@
 /* Software Engineer LIFE — offline cache. Network-first (3.5 s timeout) so deploys show up instantly,
  * with a cache fallback so the game still opens on bad event Wi-Fi. */
-const V = 'sel-v4';
+const V = 'sel-v6';
 const CORE = ['./', 'index.html', 'css/game.css', 'js/data.js', 'js/engine.js', 'js/render.js', 'js/audio.js', 'js/app.js', 'icon.svg', 'manifest.webmanifest'];
 
 self.addEventListener('install', e => {

@@ -38,9 +38,19 @@ let sound = LS.get('sel_sound', false);
 const found = new Set((LS.get('sel_found', []) || []).filter(id => D.ENDINGS.some(e => e.id === id)));   // ignore stale ids
 let G = null, lastRes = null, curView = null, curExpr = 'neutral', screen = 'title';
 let choiceResolve = null, choiceFate = false, skipFn = null, recTimer = null, t0 = 0, ambTimer = null;
-const defaultName = () => (gender === 'f' ? 'Camila' : 'Diego');
+const defaultName = () => DEF[gender];
 const total = D.ENDINGS.length;
-const fillTokens = s => s.replace(/\{o\}/g, gender === 'f' ? 'a' : 'o');
+const DEF = { f: 'Camila', m: 'Diego' };
+const fillTokens = s => s.replace(/\{\?fem\|([^|}]*)\|([^}]*)\}/g, (_, a, b) => (gender === 'f' ? a : b)).replace(/\{o\}/g, gender === 'f' ? 'a' : 'o').replace(/\{n\}/g, esc(pname || DEF[gender]));
+/* what the player typed → what the game calls them: letters only, tidy casing, a first name that fits (14 chars) */
+function cleanName(raw) {
+  let n = String(raw || '').replace(/[^\p{L}\p{N} .'-]/gu, '').replace(/\s+/g, ' ').trim();
+  if (n.length >= 14 && n.includes(' ')) n = n.slice(0, n.lastIndexOf(' '));                  // "Ana María Pére|z" → "Ana María": never end on half a surname
+  n = n.slice(0, 14).trim();
+  if (n.length > 1 && (n === n.toLowerCase() || (n.length > 3 && n === n.toUpperCase())))   // "ana maría" / "ANA" → "Ana María" / "Ana" ("JP" stays)
+    n = n.toLowerCase().replace(/(^|[\s.'-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+  return n;
+}
 
 /* ---------- small UI helpers ---------- */
 function show(id) {
@@ -93,9 +103,10 @@ function setTimeline(year, label) {
 function startRec() { clearInterval(recTimer); t0 = Date.now(); recTimer = setInterval(() => { const s = ((Date.now() - t0) / 1000) | 0; $('#rec').textContent = 'REC ' + String((s / 60) | 0).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }, 500); }
 
 async function startGame() {
-  const name = (($('#name').value || '').trim().replace(/[^\p{L}\p{N} .'-]/gu, '') || defaultName());
-  pname = $('#name').value.trim() ? name : ''; LS.set('sel_name', pname); LS.set('sel_g', gender);
+  const typed = cleanName($('#name').value), name = typed || defaultName();
+  pname = typed; LS.set('sel_name', pname); LS.set('sel_g', gender);
   G = E.createGame({ seed, gender, name });
+  $('#ntagName').textContent = name;
   buildHud($('#hud')); paintHud($('#hud'), statsOf());
   $('#ycard').classList.remove('on'); $('#cam').classList.remove('off'); $('#ticker').hidden = true; $('#amb').hidden = true;
   show('play'); startRec(); A.play('tap'); track('start', { challenge: !!urlSeed });
@@ -111,7 +122,7 @@ async function startGame() {
 
 async function showAct(n) {
   curView = n.view; curExpr = 'neutral'; $('#cam').classList.remove('off'); renderFeed(); setTimeline(n.year, String(n.year));
-  $('#ticker').hidden = true; $('#amb').hidden = true;
+  $('#ticker').hidden = true; $('#amb').hidden = true; $('#cam').classList.remove('tk');
   $('#notif').innerHTML = ''; $('#opts').innerHTML = ''; $('#meta').innerHTML = '';   // nothing from the last card behind the year card
   const chips = [];
   if (n.tick) {
@@ -120,7 +131,10 @@ async function showAct(n) {
     if (n.tick.absence) chips.push(`<span style="color:${COL.v}">Ausencias · Vida −${n.tick.absence}</span>`);
     const hh = n.tick.health || { e: 0, p: 0 };
     if (hh.e || hh.p) chips.push(`<span style="color:${COL.e}">Tu cuerpo cobra · ${[hh.e && `Energía −${hh.e}`, hh.p && `Plata −${hh.p}`].filter(Boolean).join(' · ')}</span>`);
-    delta('p', -(n.tick.cost + hh.p)); delta('e', n.tick.regen - hh.e); delta('v', -n.tick.absence); paintHud($('#hud'), { e: S.e, p: S.p, c: S.c, v: S.v });
+    const wk = n.tick.work || 0;
+    if (wk) chips.push(`<span style="color:${COL.e}">${S.flags.overloaded ? 'Sobrecarga' : 'CVs de noche'} · Energía −${wk}</span>`);
+    if (n.tick.market && n.tick.market.show) chips.push(`<span style="color:#8FA3C7">Mercado · ${n.tick.market.tenure} años en lo mismo: tu perfil pierde vigencia</span>`);   // hidden stat, surfaced as a hint — never as a number
+    delta('p', -(n.tick.cost + hh.p)); delta('e', n.tick.regen - hh.e - wk); delta('v', -n.tick.absence); paintHud($('#hud'), { e: S.e, p: S.p, c: S.c, v: S.v });
   }
   const yc = $('#ycard');
   yc.innerHTML = `<div class="y">${n.year}</div><div class="t">${esc(n.title)}</div><div class="l">${n.line}</div><div class="chips">${chips.join('')}</div><small>toca para continuar</small>`;
@@ -137,7 +151,7 @@ function showCard(card) {
   curView = v; curExpr = card.expr || 'neutral';
   $('#cam').classList.toggle('off', !!v.camOff);
   renderFeed(); setTimeline(card.year, card.label);
-  $('#ticker').hidden = !v.ticker; if (v.ticker) $('#tickerTx').textContent = v.ticker;
+  $('#ticker').hidden = !v.ticker; $('#cam').classList.toggle('tk', !!v.ticker); if (v.ticker) $('#tickerTx').textContent = v.ticker;
   const amb = $('#amb'); clearTimeout(ambTimer); amb.hidden = !AMBIENT_BANNER[v.ambient];
   if (!amb.hidden) { amb.textContent = AMBIENT_BANNER[v.ambient]; ambTimer = setTimeout(() => { amb.hidden = true; }, 2800); }
   const f = card.from, notif = $('#notif'); notif.dataset.card = card.id;
@@ -159,7 +173,7 @@ function showCard(card) {
   $$('.opt', o).forEach(b => b.addEventListener('click', () => pick(b.dataset.k)));
   $('#meta').innerHTML = S.played === 0
     ? `<span class="lg">${KEYS.map(k => `<span style="--k:${COL[k]}">${ICON[k]}<b>${NAMES[k]}</b></span>`).join('')}</span>`
-    : `<span>Decides por <b style="color:#F4F1EA">${esc(S.name)}</b> · toca A o B</span><span>Escena ${S.played + 1}</span>`;
+    : `<span>Juegas como <b style="color:#F4F1EA">${esc(S.name)}</b> · toca A o B</span><span>Escena ${S.played + 1}</span>`;
   A.play('knock'); haptic(8);
   if (AMBIENT_SOUND[v.ambient]) setTimeout(() => A.play(AMBIENT_SOUND[v.ambient]), 420);
 }
@@ -196,8 +210,9 @@ async function showOutcome(out, key) {
 /* ---------- ending ---------- */
 function finish() {
   clearInterval(recTimer);
-  const r = G.finish(); lastRes = r;
+  const r = G.finish(); r.name = G.state.name; lastRes = r;
   found.add(r.id); LS.set('sel_found', [...found]);
+  $('#eKick').textContent = 'Final de ' + r.name;
   $('#eTitle').innerHTML = r.title; $('#eRoast').innerHTML = r.roast;
   $('#eEpi').textContent = r.epilogue === 'vibe' ? '⌨️ Epílogo: dejó la cámara encendida y vibecodeó' : r.epilogue === 'walk' ? '🚲 Epílogo: cerró la laptop y salió a caminar' : '';
   $('#eStory').innerHTML = `<b>La webcam registra</b>${r.story}`;
@@ -265,17 +280,26 @@ function openFinales() {
 /* ---------- pick / title ---------- */
 function buildPick() {
   const view = { theme: 'parents', sky: 'day', light: 1, time: '09:12', props: ['window', 'curtain', 'frame', 'clock', 'shelf'] };
-  const mk = (g, name, sub) => `<button class="tile${gender === g ? ' sel' : ''}" data-g="${g}" aria-pressed="${gender === g}"><div class="pic">${R.room(Object.assign({}, view, { expr: 'happy', fatigue: 0, g, crop: '20 150 350 370', u: 'p' + g }))}<span class="ledn"><i></i>${gender === g ? 'En vivo' : 'Apagada'}</span></div><div class="lab"><b>${name}</b><span>${sub}</span></div></button>`;
-  $('#tiles').innerHTML = mk('f', 'Camila', 'Ella · 24 años · Lima') + mk('m', 'Diego', 'Él · 24 años · Lima');
+  const tag = '<span class="ntag"><svg class="mi on" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/></svg><b></b><small>(Tú)</small></span>';
+  const mk = (g, who, sub) => `<button class="tile${gender === g ? ' sel' : ''}" role="radio" aria-checked="${gender === g}" aria-label="${who}" data-g="${g}"><div class="pic">${R.room(Object.assign({}, view, { expr: 'happy', fatigue: 0, g, crop: '20 150 350 370', u: 'p' + g }))}<span class="ledn"><i></i>${gender === g ? 'En vivo' : 'Apagada'}</span>${tag}</div><div class="lab"><b>${who}</b><span>${sub}</span></div></button>`;
+  $('#tiles').innerHTML = mk('f', 'Ella', '24 años · Lima') + mk('m', 'Él', '24 años · Lima');
   $('#name').placeholder = defaultName();
   $$('.tile').forEach(t => t.addEventListener('click', () => { gender = t.dataset.g; buildPick(); A.play('tap'); }));
+  refreshPick();
 }
-function toPick() { buildPick(); $('#name').value = pname; show('pick'); A.play('tap'); }
+/* the name you type shows up instantly under both faces and on the button: you see who you will be before you start */
+function refreshPick() {
+  const typed = cleanName($('#name').value);
+  $$('.tile').forEach(t => { $('.ntag b', t).textContent = typed || DEF[t.dataset.g]; });
+  $('#goTxt').textContent = 'Empezar como ' + (typed || defaultName());
+}
+function toPick() { buildPick(); $('#name').value = pname; refreshPick(); show('pick'); A.play('tap'); }
 function titleInfo() {
   const from = params.get('from'), e = D.ENDINGS.find(x => x.id === from);
   const c = $('#challenge');
   if (urlSeed) c.textContent = '🎯 Un amigo te retó: viven el mismo mundo. Tus decisiones cambian el final.';
   else if (e) c.innerHTML = `🎞️ Un amigo terminó en “${fillTokens(e.title)}”. ¿Y tú?`;
+  else if (pname && found.size) c.textContent = `🎞️ La webcam te recuerda, ${pname}. ¿Qué final te sale hoy?`;
   else c.textContent = '';
   $('#btnFinales').hidden = found.size === 0; $('#btnFinales').textContent = `Mis finales (${found.size}/${total})`;
 }
@@ -309,6 +333,8 @@ function bind() {
   $('#s-play').addEventListener('click', e => { if (!choiceResolve && !e.target.closest('.opt,.snd')) skip(); });
   $('#ycard').addEventListener('click', skip);
   $('#name').addEventListener('keydown', e => { if (e.key === 'Enter') startGame(); });
+  $('#name').addEventListener('input', refreshPick);
+  $('#name').addEventListener('blur', () => { $('#name').value = cleanName($('#name').value); refreshPick(); });   // the field shows exactly what the game will call you
   addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key.toLowerCase();
